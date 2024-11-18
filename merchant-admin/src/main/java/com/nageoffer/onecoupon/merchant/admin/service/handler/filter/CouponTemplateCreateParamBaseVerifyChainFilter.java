@@ -69,11 +69,11 @@ public class CouponTemplateCreateParamBaseVerifyChainFilter implements MerchantA
             // 此处已经基本能判断数据请求属于恶意攻击，可以上报风控中心进行封禁账号
             throw new ClientException("优惠对象值不存在");
         }
-        if (ObjectUtil.equal(requestParam.getTarget(), DiscountTargetEnum.ALL_STORE_GENERAL)
+        if (ObjectUtil.equal(requestParam.getTarget(), DiscountTargetEnum.ALL_STORE_GENERAL.getType())
                 && StrUtil.isNotEmpty(requestParam.getGoods())) {
             throw new ClientException("优惠券全店通用不可设置指定商品");
         }
-        if (ObjectUtil.equal(requestParam.getTarget(), DiscountTargetEnum.PRODUCT_SPECIFIC)
+        if (ObjectUtil.equal(requestParam.getTarget(), DiscountTargetEnum.PRODUCT_SPECIFIC.getType())
                 && StrUtil.isEmpty(requestParam.getGoods())) {
             throw new ClientException("优惠券商品专属未设置指定商品");
         }

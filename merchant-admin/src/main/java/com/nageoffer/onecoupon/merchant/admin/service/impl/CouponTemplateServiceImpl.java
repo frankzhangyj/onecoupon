@@ -104,7 +104,9 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
         String luaScript = "redis.call('HMSET', KEYS[1], unpack(ARGV, 1, #ARGV - 1)) " +
                 "redis.call('EXPIREAT', KEYS[1], ARGV[#ARGV])";
 
+        // 用于指定具体的键key
         List<String> keys = Collections.singletonList(couponTemplateCacheKey);
+        // 设置哈希表中的键值对 预留一个参数位置作为过期时间
         List<String> args = new ArrayList<>(actualCacheTargetMap.size() * 2 + 1);
         actualCacheTargetMap.forEach((key, value) -> {
             args.add(key);
