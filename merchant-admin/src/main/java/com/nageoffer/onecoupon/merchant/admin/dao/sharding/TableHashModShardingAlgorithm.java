@@ -50,6 +50,12 @@ import java.util.List;
  */
 public final class TableHashModShardingAlgorithm implements StandardShardingAlgorithm<Long> {
 
+    /**
+     * 这里直接用库中可用表的数量对hash值取余
+     * @param availableTargetNames
+     * @param shardingValue
+     * @return
+     */
     @Override
     public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<Long> shardingValue) {
         long id = shardingValue.getValue();

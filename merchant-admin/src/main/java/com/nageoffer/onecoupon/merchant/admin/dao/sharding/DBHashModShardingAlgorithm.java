@@ -60,6 +60,13 @@ public final class DBHashModShardingAlgorithm implements StandardShardingAlgorit
     private int shardingCount;
     private static final String SHARDING_COUNT_KEY = "sharding-count";
 
+    /**
+     * 自定义分库算法可以避免直接mod库数量导致数据分布不均(偶数库中只有偶数表有数据)
+     * 结合shardingCount可以实现数据库分配更加均匀
+     * @param availableTargetNames
+     * @param shardingValue
+     * @return
+     */
     @Override
     public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<Long> shardingValue) {
         long id = shardingValue.getValue();
