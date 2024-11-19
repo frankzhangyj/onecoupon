@@ -37,6 +37,7 @@ package com.nageoffer.onecoupon.merchant.admin.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.digest.DigestUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.mzt.logapi.context.LogRecordContext;
@@ -54,9 +55,13 @@ import com.nageoffer.onecoupon.merchant.admin.dto.resp.CouponTemplateQueryRespDT
 import com.nageoffer.onecoupon.merchant.admin.service.CouponTemplateService;
 import com.nageoffer.onecoupon.merchant.admin.service.basics.chain.MerchantAdminChainContext;
 import lombok.RequiredArgsConstructor;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -81,6 +86,7 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
     private final CouponTemplateMapper couponTemplateMapper;
     private final MerchantAdminChainContext merchantAdminChainContext;
     private final StringRedisTemplate stringRedisTemplate;
+    private final RedissonClient redissonClient;
 
     @LogRecord(
             success = """
@@ -100,6 +106,17 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
     )
     @Override
     public void createCouponTemplate(CouponTemplateSaveReqDTO requestParam) {
+        // 获取分布式锁标识
+        String lockKey = String.format("no-duplicate-submit:path:%s:currentUserId:%s:md5:%s", getServletPath(), getCurrentUserId(), calcArgsMD5(requestParam));
+        RLock lock = redissonClient.getLock(lockKey);
+
+        // 尝试获取锁，获取锁失败就意味着已经重复提交，直接抛出异常
+        if (!lock.tryLock()) {
+            throw new ClientException("请勿短时间内重复提交优惠券模板");
+        }
+
+        try {
+            // 执行常规业务代码
         // 通过责任链验证请求参数是否正确
         merchantAdminChainContext.handler(MERCHANT_ADMIN_CREATE_COUPON_TEMPLATE_KEY.name(), requestParam);
 
@@ -138,13 +155,38 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
         // 优惠券活动过期时间转换为秒级别的 Unix 时间戳
         args.add(String.valueOf(couponTemplateDO.getValidEndTime().getTime() / 1000));
 
-        // 执行 LUA 脚本
+        // 执行 LUA 脚本 保证原子性
         stringRedisTemplate.execute(
                 new DefaultRedisScript<>(luaScript, Long.class),
                 keys,
                 args.toArray()
         );
 
+        } finally {
+            lock.unlock();
+        }
+    }
 
+    /**
+     * @return 获取当前线程上下文 ServletPath
+     */
+    private String getServletPath() {
+        ServletRequestAttributes sra = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        return sra.getRequest().getServletPath();
+    }
+
+    /**
+     * @return 当前操作用户 ID
+     */
+    private String getCurrentUserId() {
+        // 用户属于非核心功能，这里先通过模拟的形式代替。后续如果需要后管展示，会重构该代码
+        return "1810518709471555585";
+    }
+
+    /**
+     * @return joinPoint md5
+     */
+    private String calcArgsMD5(CouponTemplateSaveReqDTO requestParam) {
+        return DigestUtil.md5Hex(JSON.toJSONBytes(requestParam));
     }
 }
