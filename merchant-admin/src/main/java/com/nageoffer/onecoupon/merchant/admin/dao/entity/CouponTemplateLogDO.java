@@ -32,26 +32,66 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin;
+package com.nageoffer.onecoupon.merchant.admin.dao.entity;
 
-import com.mzt.logapi.starter.annotation.EnableLogRecord;
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.Date;
 
 /**
- * 商家后管服务｜创建优惠券、店家查看以及管理优惠券、创建优惠券发放批次等
- * <p>
- * 作者：frankZ
- * 加星球群：早加入就是优势！500人内部沟通群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * ：2024-07-08
+ * 优惠券模板操作日志数据库持久层实体
  */
-@EnableLogRecord(tenant = "MerchantAdmin")
-@SpringBootApplication
-@MapperScan("com.nageoffer.onecoupon.merchant.admin.dao.mapper")
-public class MerchantAdminApplication {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@TableName("t_coupon_template_log")
+public class CouponTemplateLogDO {
 
-    public static void main(String[] args) {
-        SpringApplication.run(MerchantAdminApplication.class, args);
-    }
+    /**
+     * id
+     */
+    private Long id;
+
+    /**
+     * 店铺编号
+     */
+    private Long shopNumber;
+
+    /**
+     * 优惠券模板ID
+     */
+    private String couponTemplateId;
+
+    /**
+     * 操作人
+     */
+    private String operatorId;
+
+    /**
+     * 操作日志
+     */
+    private String operationLog;
+
+    /**
+     * 原始数据
+     */
+    private String originalData;
+
+    /**
+     * 修改后数据
+     */
+    private String modifiedData;
+
+    /**
+     * 创建时间
+     */
+    @TableField(fill = FieldFill.INSERT)
+    private Date createTime;
 }

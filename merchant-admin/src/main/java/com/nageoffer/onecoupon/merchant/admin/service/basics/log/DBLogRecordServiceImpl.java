@@ -32,26 +32,60 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin;
+package com.nageoffer.onecoupon.merchant.admin.service.basics.log;
 
-import com.mzt.logapi.starter.annotation.EnableLogRecord;
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import cn.hutool.core.util.StrUtil;
+import com.mzt.logapi.beans.LogRecord;
+import com.mzt.logapi.context.LogRecordContext;
+import com.mzt.logapi.service.ILogRecordService;
+import com.nageoffer.onecoupon.merchant.admin.common.context.UserContext;
+import com.nageoffer.onecoupon.merchant.admin.dao.entity.CouponTemplateLogDO;
+import com.nageoffer.onecoupon.merchant.admin.dao.mapper.CouponTemplateLogMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
- * 商家后管服务｜创建优惠券、店家查看以及管理优惠券、创建优惠券发放批次等
- * <p>
- * 作者：frankZ
- * 加星球群：早加入就是优势！500人内部沟通群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * ：2024-07-08
+ * 保存操作日志新增到数据库
  */
-@EnableLogRecord(tenant = "MerchantAdmin")
-@SpringBootApplication
-@MapperScan("com.nageoffer.onecoupon.merchant.admin.dao.mapper")
-public class MerchantAdminApplication {
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class DBLogRecordServiceImpl implements ILogRecordService {
 
-    public static void main(String[] args) {
-        SpringApplication.run(MerchantAdminApplication.class, args);
+    private final CouponTemplateLogMapper couponTemplateLogMapper;
+
+    @Override
+    public void record(LogRecord logRecord) {
+        try {
+            switch (logRecord.getType()) {
+                case "CouponTemplate": {
+                    CouponTemplateLogDO couponTemplateLogDO = CouponTemplateLogDO.builder()
+                            .couponTemplateId(logRecord.getBizNo())
+                            .shopNumber(UserContext.getShopNumber())
+                            .operatorId(UserContext.getUserId())
+                            .operationLog(logRecord.getAction())
+                            .originalData(Optional.ofNullable(LogRecordContext.getVariable("originalData")).map(Object::toString).orElse(null))
+                            .modifiedData(StrUtil.isBlank(logRecord.getExtra()) ? null : logRecord.getExtra())
+                            .build();
+                    couponTemplateLogMapper.insert(couponTemplateLogDO);
+                }
+            }
+        } catch (Exception ex) {
+            log.error("记录[{}]操作日志失败", logRecord.getType(), ex);
+        }
+    }
+
+    @Override
+    public List<LogRecord> queryLog(String bizNo, String type) {
+        return List.of();
+    }
+
+    @Override
+    public List<LogRecord> queryLogByBizNo(String bizNo, String type, String subType) {
+        return List.of();
     }
 }
