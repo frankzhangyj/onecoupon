@@ -32,34 +32,22 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.controller;
+package com.nageoffer.onecoupon.framework.idempotent;
 
-import com.nageoffer.onecoupon.framework.idempotent.NoDuplicateSubmit;
-import com.nageoffer.onecoupon.framework.result.Result;
-import com.nageoffer.onecoupon.framework.web.Results;
-import com.nageoffer.onecoupon.merchant.admin.dto.req.CouponTemplateSaveReqDTO;
-import com.nageoffer.onecoupon.merchant.admin.service.CouponTemplateService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * 优惠券模板控制层
+ * 幂等注解，防止用户重复提交表单信息
  */
-@RestController
-@RequiredArgsConstructor
-@Tag(name = "优惠券模板管理")
-public class CouponTemplateController {
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface NoDuplicateSubmit {
 
-    private final CouponTemplateService couponTemplateService;
-    @NoDuplicateSubmit
-    @Operation(summary = "商家创建优惠券模板")
-    @PostMapping("/api/merchant-admin/coupon-template/create")
-    public Result<Void> createCouponTemplate(@RequestBody CouponTemplateSaveReqDTO requestParam) {
-        couponTemplateService.createCouponTemplate(requestParam);
-        return Results.success();
-    }
+    /**
+     * 触发幂等失败逻辑时，返回的错误提示信息
+     */
+    String message() default "您操作太快，请稍后再试";
 }

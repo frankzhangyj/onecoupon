@@ -73,10 +73,6 @@ import static com.nageoffer.onecoupon.merchant.admin.common.enums.ChainBizMarkEn
 
 /**
  * 优惠券模板业务逻辑实现层
- * <p>
- * 作者：frankZ
- * 
- * ：2024-07-08
  */
 
 @Service
@@ -106,16 +102,16 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
     )
     @Override
     public void createCouponTemplate(CouponTemplateSaveReqDTO requestParam) {
-        // 获取分布式锁标识
-        String lockKey = String.format("no-duplicate-submit:path:%s:currentUserId:%s:md5:%s", getServletPath(), getCurrentUserId(), calcArgsMD5(requestParam));
-        RLock lock = redissonClient.getLock(lockKey);
+//        // 获取分布式锁标识
+//        String lockKey = String.format("no-duplicate-submit:path:%s:currentUserId:%s:md5:%s", getServletPath(), getCurrentUserId(), calcArgsMD5(requestParam));
+//        RLock lock = redissonClient.getLock(lockKey);
+//
+//        // 尝试获取锁，获取锁失败就意味着已经重复提交，直接抛出异常
+//        if (!lock.tryLock()) {
+//            throw new ClientException("请勿短时间内重复提交优惠券模板");
+//        }
 
-        // 尝试获取锁，获取锁失败就意味着已经重复提交，直接抛出异常
-        if (!lock.tryLock()) {
-            throw new ClientException("请勿短时间内重复提交优惠券模板");
-        }
-
-        try {
+//        try {
             // 执行常规业务代码
         // 通过责任链验证请求参数是否正确
         merchantAdminChainContext.handler(MERCHANT_ADMIN_CREATE_COUPON_TEMPLATE_KEY.name(), requestParam);
@@ -161,32 +157,32 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
                 keys,
                 args.toArray()
         );
-
-        } finally {
-            lock.unlock();
-        }
+//
+//        } finally {
+//            lock.unlock();
+//        }
     }
 
-    /**
-     * @return 获取当前线程上下文 ServletPath
-     */
-    private String getServletPath() {
-        ServletRequestAttributes sra = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        return sra.getRequest().getServletPath();
-    }
-
-    /**
-     * @return 当前操作用户 ID
-     */
-    private String getCurrentUserId() {
-        // 用户属于非核心功能，这里先通过模拟的形式代替。后续如果需要后管展示，会重构该代码
-        return "1810518709471555585";
-    }
-
-    /**
-     * @return joinPoint md5
-     */
-    private String calcArgsMD5(CouponTemplateSaveReqDTO requestParam) {
-        return DigestUtil.md5Hex(JSON.toJSONBytes(requestParam));
-    }
+//    /**
+//     * @return 获取当前线程上下文 ServletPath
+//     */
+//    private String getServletPath() {
+//        ServletRequestAttributes sra = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+//        return sra.getRequest().getServletPath();
+//    }
+//
+//    /**
+//     * @return 当前操作用户 ID
+//     */
+//    private String getCurrentUserId() {
+//        // 用户属于非核心功能，这里先通过模拟的形式代替。后续如果需要后管展示，会重构该代码
+//        return "1810518709471555585";
+//    }
+//
+//    /**
+//     * @return joinPoint md5
+//     */
+//    private String calcArgsMD5(CouponTemplateSaveReqDTO requestParam) {
+//        return DigestUtil.md5Hex(JSON.toJSONBytes(requestParam));
+//    }
 }

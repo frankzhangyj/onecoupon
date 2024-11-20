@@ -39,10 +39,6 @@ import org.springframework.context.annotation.Bean;
 
 /**
  * Web 组件自动装配
- * <p>
- * 作者：frankZ
- *
- * ：2024-07-09
  */
 public class WebAutoConfiguration {
 
