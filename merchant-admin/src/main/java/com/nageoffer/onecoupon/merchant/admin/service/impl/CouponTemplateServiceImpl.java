@@ -39,6 +39,7 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -64,10 +65,17 @@ import com.nageoffer.onecoupon.merchant.admin.dto.resp.CouponTemplateQueryRespDT
 import com.nageoffer.onecoupon.merchant.admin.service.CouponTemplateService;
 import com.nageoffer.onecoupon.merchant.admin.service.basics.chain.MerchantAdminChainContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.common.message.MessageConst;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -82,13 +90,17 @@ import static com.nageoffer.onecoupon.merchant.admin.common.enums.ChainBizMarkEn
  */
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper, CouponTemplateDO> implements CouponTemplateService {
 
     private final CouponTemplateMapper couponTemplateMapper;
     private final MerchantAdminChainContext merchantAdminChainContext;
     private final StringRedisTemplate stringRedisTemplate;
-//    private final RedissonClient redissonClient;
+    //    private final RedissonClient redissonClient;
+    private final RocketMQTemplate rocketMQTemplate;
+    // 得到spring配置环境相关的属性以及各种配置信息
+    private final ConfigurableEnvironment configurableEnvironment;
 
     @LogRecord(
             success = """
@@ -167,6 +179,37 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
 //        } finally {
 //            lock.unlock();
 //        }
+
+        // 使用 RocketMQ5.x 发送任意时间延时消息
+        // 定义 Topic
+        String couponTemplateDelayCloseTopic = "one-coupon_merchant-admin-service_coupon-template-delay_topic${unique-name:}";
+
+        // 通过 Spring 上下文解析占位符，也就是把咱们 VM 参数里的 unique-name 替换到字符串中
+        couponTemplateDelayCloseTopic = configurableEnvironment.resolvePlaceholders(couponTemplateDelayCloseTopic);
+
+        // 定义消息体
+        JSONObject messageBody = new JSONObject();
+        messageBody.put("couponTemplateId", couponTemplateDO.getId());
+        messageBody.put("shopNumber", UserContext.getShopNumber());
+
+        // 设置消息的送达时间，毫秒级 Unix 时间戳 当到达到期时间自动发送消息到消费者组的订阅中消费
+        Long deliverTimeStamp = couponTemplateDO.getValidEndTime().getTime();
+
+        // 构建消息体
+        String messageKeys = UUID.randomUUID().toString();
+        Message<JSONObject> message = MessageBuilder
+                .withPayload(messageBody)
+                .setHeader(MessageConst.PROPERTY_KEYS, messageKeys)
+                .build();
+
+        // 执行 RocketMQ5.x 消息队列发送&异常处理逻辑
+        SendResult sendResult;
+        try {
+            sendResult = rocketMQTemplate.syncSendDeliverTimeMills(couponTemplateDelayCloseTopic, message, deliverTimeStamp);
+            log.info("[生产者] 优惠券模板延时关闭 - 发送结果：{}，消息ID：{}，消息Keys：{}", sendResult.getSendStatus(), sendResult.getMsgId(), messageKeys);
+        } catch (Exception ex) {
+            log.error("[生产者] 优惠券模板延时关闭 - 消息发送失败，消息体：{}", couponTemplateDO.getId(), ex);
+        }
     }
 
 //    /**
@@ -232,6 +275,7 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
      * mysql中默认隔离级别rr事务自动提交 一个语句就是一个事务 在mvcc控制下使用增删改或者select for update会自动添加排他锁 都是一种当前读
      * 如果只是单纯select 在rc级别下每一次都会读到事务更新后的数据 rr级别下每一次读都只会读到第一次读之前的事务数据 都是一种快照读
      * 所以并发一条更新语句不用加transactional注解开启事务 由于当前读自动添加排他锁 不用担心并发问题 会顺序执行
+     *
      * @param requestParam 请求参数
      */
     @LogRecord(
