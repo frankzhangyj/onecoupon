@@ -32,66 +32,47 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.config;
+package com.nageoffer.onecoupon.merchant.admin.mq.consumer;
 
-import com.nageoffer.onecoupon.merchant.admin.common.context.UserContext;
-import com.nageoffer.onecoupon.merchant.admin.common.context.UserInfoDTO;
-import jakarta.annotation.Nullable;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import com.alibaba.fastjson.JSON;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.nageoffer.onecoupon.merchant.admin.common.enums.CouponTemplateStatusEnum;
+import com.nageoffer.onecoupon.merchant.admin.dao.entity.CouponTemplateDO;
+import com.nageoffer.onecoupon.merchant.admin.mq.base.MessageWrapper;
+import com.nageoffer.onecoupon.merchant.admin.mq.event.CouponTemplateDelayEvent;
+import com.nageoffer.onecoupon.merchant.admin.service.CouponTemplateService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
+import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.springframework.stereotype.Component;
 
 /**
- * 用户相关配置类
- * <p>
- * 作者：frankZ
- * 
- * ：2024-07-09
+ * 优惠券推送延迟执行-变更记录发送状态消费者
  */
-@Configuration
-public class UserConfiguration implements WebMvcConfigurer {
+@Component
+@RequiredArgsConstructor
+@RocketMQMessageListener(
+        topic = "one-coupon_merchant-admin-service_coupon-template-delay_topic${unique-name:}",
+        consumerGroup = "one-coupon_merchant-admin-service_coupon-template-delay-status_cg${unique-name:}"
+)
+@Slf4j(topic = "CouponTemplateDelayExecuteStatusConsumer")
+public class CouponTemplateDelayExecuteStatusConsumer implements RocketMQListener<MessageWrapper<CouponTemplateDelayEvent>> {
 
-    /**
-     * 用户信息传输拦截器
-     */
-    @Bean
-    public UserTransmitInterceptor userTransmitInterceptor() {
-        return new UserTransmitInterceptor();
-    }
+    private final CouponTemplateService couponTemplateService;
 
-    /**
-     * 添加用户信息传递过滤器至相关路径拦截
-     */
     @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(userTransmitInterceptor())
-                .addPathPatterns("/**");
-    }
+    public void onMessage(MessageWrapper<CouponTemplateDelayEvent> messageWrapper) {
+        // 开头打印日志，平常可 Debug 看任务参数，线上可报平安（比如消息是否消费，重新投递时获取参数等）
+        log.info("[消费者] 优惠券模板定时执行@变更模板表状态 - 执行消费逻辑，消息体：{}", JSON.toJSONString(messageWrapper));
 
-    /**
-     * 用户信息传输拦截器
-     * <p>
-     * 作者：frankZ
-     * 
-     * ：2024-07-09
-     */
-    static class UserTransmitInterceptor implements HandlerInterceptor {
-
-        @Override
-        public boolean preHandle(@Nullable HttpServletRequest request, @Nullable HttpServletResponse response, @Nullable Object handler) throws Exception {
-            // 用户属于非核心功能，这里先通过模拟的形式代替。后续如果需要后管展示，会重构该代码
-            UserInfoDTO userInfoDTO = new UserInfoDTO("1810518709471555585", "pdd45305558318", 1858697272296513537L);
-            UserContext.setUser(userInfoDTO);
-            return true;
-        }
-
-        @Override
-        public void afterCompletion(@Nullable HttpServletRequest request, @Nullable HttpServletResponse response, @Nullable Object handler, Exception exception) throws Exception {
-            UserContext.removeUser();
-        }
+        // 修改指定优惠券模板状态为已结束
+        CouponTemplateDelayEvent message = messageWrapper.getMessage();
+        LambdaUpdateWrapper<CouponTemplateDO> updateWrapper = Wrappers.lambdaUpdate(CouponTemplateDO.class)
+                .eq(CouponTemplateDO::getShopNumber, message.getShopNumber())
+                .eq(CouponTemplateDO::getId, message.getCouponTemplateId())
+                .set(CouponTemplateDO::getStatus, CouponTemplateStatusEnum.ENDED.getStatus());
+        couponTemplateService.update(updateWrapper);
     }
 }

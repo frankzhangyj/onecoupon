@@ -62,6 +62,8 @@ import com.nageoffer.onecoupon.merchant.admin.dto.req.CouponTemplatePageQueryReq
 import com.nageoffer.onecoupon.merchant.admin.dto.req.CouponTemplateSaveReqDTO;
 import com.nageoffer.onecoupon.merchant.admin.dto.resp.CouponTemplatePageQueryRespDTO;
 import com.nageoffer.onecoupon.merchant.admin.dto.resp.CouponTemplateQueryRespDTO;
+import com.nageoffer.onecoupon.merchant.admin.mq.event.CouponTemplateDelayEvent;
+import com.nageoffer.onecoupon.merchant.admin.mq.producer.CouponTemplateDelayExecuteStatusProducer;
 import com.nageoffer.onecoupon.merchant.admin.service.CouponTemplateService;
 import com.nageoffer.onecoupon.merchant.admin.service.basics.chain.MerchantAdminChainContext;
 import lombok.RequiredArgsConstructor;
@@ -98,9 +100,11 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
     private final MerchantAdminChainContext merchantAdminChainContext;
     private final StringRedisTemplate stringRedisTemplate;
     //    private final RedissonClient redissonClient;
-    private final RocketMQTemplate rocketMQTemplate;
+//    private final RocketMQTemplate rocketMQTemplate;
     // 得到spring配置环境相关的属性以及各种配置信息
     private final ConfigurableEnvironment configurableEnvironment;
+    // 模板方法模式的具体任务生产者的子类
+    private final CouponTemplateDelayExecuteStatusProducer couponTemplateDelayExecuteStatusProducer;
 
     @LogRecord(
             success = """
@@ -195,21 +199,29 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
         // 设置消息的送达时间，毫秒级 Unix 时间戳
         Long deliverTimeStamp = couponTemplateDO.getValidEndTime().getTime();
 
-        // 构建消息体
-        String messageKeys = UUID.randomUUID().toString();
-        Message<JSONObject> message = MessageBuilder
-                .withPayload(messageBody)
-                .setHeader(MessageConst.PROPERTY_KEYS, messageKeys)
+        // 基于模板方法模式构建消息发送模板
+        // 发送延时消息事件，优惠券活动到期修改优惠券模板状态
+        CouponTemplateDelayEvent templateDelayEvent = CouponTemplateDelayEvent.builder()
+                .shopNumber(UserContext.getShopNumber())
+                .couponTemplateId(couponTemplateDO.getId())
+                .delayTime(couponTemplateDO.getValidEndTime().getTime())
                 .build();
-        System.out.println(messageKeys);
-        // 执行 RocketMQ5.x 消息队列发送&异常处理逻辑
-        SendResult sendResult;
-        try {
-            sendResult = rocketMQTemplate.syncSendDeliverTimeMills(couponTemplateDelayCloseTopic, message, deliverTimeStamp);
-            log.info("[生产者] 优惠券模板延时关闭 - 发送结果：{}，消息ID：{}，消息Keys：{}", sendResult.getSendStatus(), sendResult.getMsgId(), messageKeys);
-        } catch (Exception ex) {
-            log.error("[生产者] 优惠券模板延时关闭 - 消息发送失败，消息体：{}", couponTemplateDO.getId(), ex);
-        }
+        couponTemplateDelayExecuteStatusProducer.sendMessage(templateDelayEvent);
+//        // 构建消息体
+//        String messageKeys = UUID.randomUUID().toString();
+//        Message<JSONObject> message = MessageBuilder
+//                .withPayload(messageBody)
+//                .setHeader(MessageConst.PROPERTY_KEYS, messageKeys)
+//                .build();
+//        System.out.println(messageKeys);
+//        // 执行 RocketMQ5.x 消息队列发送&异常处理逻辑
+//        SendResult sendResult;
+//        try {
+//            sendResult = rocketMQTemplate.syncSendDeliverTimeMills(couponTemplateDelayCloseTopic, message, deliverTimeStamp);
+//            log.info("[生产者] 优惠券模板延时关闭 - 发送结果：{}，消息ID：{}，消息Keys：{}", sendResult.getSendStatus(), sendResult.getMsgId(), messageKeys);
+//        } catch (Exception ex) {
+//            log.error("[生产者] 优惠券模板延时关闭 - 消息发送失败，消息体：{}", couponTemplateDO.getId(), ex);
+//        }
     }
 
 //    /**
