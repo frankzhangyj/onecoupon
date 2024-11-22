@@ -32,66 +32,80 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.config;
+package com.nageoffer.onecoupon.merchant.admin.task;
 
-import com.nageoffer.onecoupon.merchant.admin.common.context.UserContext;
-import com.nageoffer.onecoupon.merchant.admin.common.context.UserInfoDTO;
-import jakarta.annotation.Nullable;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.util.IdUtil;
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.annotation.ExcelProperty;
+import com.alibaba.excel.annotation.write.style.ColumnWidth;
+import com.alibaba.excel.util.ListUtils;
+import com.github.javafaker.Faker;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.junit.jupiter.api.Test;
+
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Locale;
 
 /**
- * 用户相关配置类
- * <p>
- * 作者：frankZ
- * 
- * ：2024-07-09
+ * 百万 Excel 文件生成单元测试
  */
-@Configuration
-public class UserConfiguration implements WebMvcConfigurer {
+public final class ExcelGenerateTests {
 
     /**
-     * 用户信息传输拦截器
+     * 写入优惠券推送示例 Excel 的数据，自行控制即可
      */
-    @Bean
-    public UserTransmitInterceptor userTransmitInterceptor() {
-        return new UserTransmitInterceptor();
+    private final int writeNum = 1000000;
+    private final Faker faker = new Faker(Locale.CHINA);
+    // springboot模块中的各种文件的当前工作目录都是模块目录
+    private final String excelPath = Paths.get("").toAbsolutePath().getParent() + "/tmp";
+
+    @Test
+    public void testExcelGenerate() {
+        if (!FileUtil.exist(excelPath)) {
+            FileUtil.mkdir(excelPath);
+        }
+        String fileName = excelPath + "/oneCoupon任务推送Excel.xlsx";
+        EasyExcel.write(fileName, ExcelGenerateDemoData.class).sheet("优惠券推送列表").doWrite(data());
     }
 
-    /**
-     * 添加用户信息传递过滤器至相关路径拦截
-     */
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(userTransmitInterceptor())
-                .addPathPatterns("/**");
+    private List<ExcelGenerateDemoData> data() {
+        List<ExcelGenerateDemoData> list = ListUtils.newArrayList();
+        for (int i = 0; i < writeNum; i++) {
+            ExcelGenerateDemoData data = ExcelGenerateDemoData.builder()
+                    .mail(faker.number().digits(10) + "@163.com")
+                    .phone(faker.phoneNumber().cellPhone())
+                    .userId(IdUtil.getSnowflakeNextIdStr())
+                    .build();
+            list.add(data);
+        }
+        return list;
     }
 
+
     /**
-     * 用户信息传输拦截器
-     * <p>
-     * 作者：frankZ
-     * 
-     * ：2024-07-09
+     * 百万 Excel 生成器示例数据模型
      */
-    static class UserTransmitInterceptor implements HandlerInterceptor {
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    static class ExcelGenerateDemoData {
 
-        @Override
-        public boolean preHandle(@Nullable HttpServletRequest request, @Nullable HttpServletResponse response, @Nullable Object handler) throws Exception {
-            // 用户属于非核心功能，这里先通过模拟的形式代替。后续如果需要后管展示，会重构该代码
-            UserInfoDTO userInfoDTO = new UserInfoDTO("1810518709471555585", "pdd45305558318", 1858697272468439041L);
-            UserContext.setUser(userInfoDTO);
-            return true;
-        }
+        @ColumnWidth(30)
+        @ExcelProperty("用户ID")
+        private String userId;
 
-        @Override
-        public void afterCompletion(@Nullable HttpServletRequest request, @Nullable HttpServletResponse response, @Nullable Object handler, Exception exception) throws Exception {
-            UserContext.removeUser();
-        }
+        @ColumnWidth(20)
+        @ExcelProperty("手机号")
+        private String phone;
+
+        @ColumnWidth(30)
+        @ExcelProperty("邮箱")
+        private String mail;
     }
 }

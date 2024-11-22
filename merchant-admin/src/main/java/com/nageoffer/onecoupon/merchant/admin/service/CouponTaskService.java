@@ -32,44 +32,21 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.mq.consumer;
+package com.nageoffer.onecoupon.merchant.admin.service;
 
-import com.alibaba.fastjson2.JSONObject;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.nageoffer.onecoupon.merchant.admin.common.enums.CouponTemplateStatusEnum;
-import com.nageoffer.onecoupon.merchant.admin.dao.entity.CouponTemplateDO;
-import com.nageoffer.onecoupon.merchant.admin.service.CouponTemplateService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.spring.core.RocketMQListener;
-import org.springframework.stereotype.Component;
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.nageoffer.onecoupon.merchant.admin.dao.entity.CouponTaskDO;
+import com.nageoffer.onecoupon.merchant.admin.dto.req.CouponTaskCreateReqDTO;
 
 /**
- * 优惠券推送延迟执行-变更记录发送状态消费者
+ * 优惠券推送业务逻辑层
  */
-@Component
-@RequiredArgsConstructor
-@RocketMQMessageListener(
-        topic = "one-coupon_merchant-admin-service_coupon-template-delay_topic${unique-name:}",
-        consumerGroup = "one-coupon_merchant-admin-service_coupon-template-delay-status_cg${unique-name:}"
-)
-@Slf4j(topic = "CouponTemplateDelayExecuteStatusConsumer")
-public class CouponTemplateDelayExecuteStatusConsumer implements RocketMQListener<JSONObject> {
+public interface CouponTaskService extends IService<CouponTaskDO> {
 
-    private final CouponTemplateService couponTemplateService;
-
-    @Override
-    public void onMessage(JSONObject message) {
-        // 开头打印日志，平常可 Debug 看任务参数，线上可报平安（比如消息是否消费，重新投递时获取参数等）
-        log.info("[消费者] 优惠券模板定时执行@变更模板表状态 - 执行消费逻辑，消息体：{}", message.toString());
-
-        // 修改指定优惠券模板状态为已结束
-        LambdaUpdateWrapper<CouponTemplateDO> updateWrapper = Wrappers.lambdaUpdate(CouponTemplateDO.class)
-                .eq(CouponTemplateDO::getShopNumber, message.getLong("shopNumber"))
-                .eq(CouponTemplateDO::getId, message.getLong("couponTemplateId"))
-                .set(CouponTemplateDO::getStatus, CouponTemplateStatusEnum.ENDED.getStatus());
-        couponTemplateService.update(updateWrapper);
-    }
+    /**
+     * 商家创建优惠券推送任务
+     *
+     * @param requestParam 请求参数
+     */
+    void createCouponTask(CouponTaskCreateReqDTO requestParam);
 }

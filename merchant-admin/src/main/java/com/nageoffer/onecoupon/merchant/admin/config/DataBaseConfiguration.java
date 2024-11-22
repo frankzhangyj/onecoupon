@@ -74,10 +74,6 @@ public class DataBaseConfiguration {
 
     /**
      * MyBatis-Plus 源数据自动填充类
-     * <p>
-     * 作者：frankZ
-     * 
-     * ：2024-07-08
      */
     static class MyMetaObjectHandler implements MetaObjectHandler {
 

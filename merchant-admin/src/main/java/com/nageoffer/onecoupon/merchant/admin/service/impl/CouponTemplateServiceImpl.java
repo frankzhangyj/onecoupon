@@ -192,7 +192,7 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
         messageBody.put("couponTemplateId", couponTemplateDO.getId());
         messageBody.put("shopNumber", UserContext.getShopNumber());
 
-        // 设置消息的送达时间，毫秒级 Unix 时间戳 当到达到期时间自动发送消息到消费者组的订阅中消费
+        // 设置消息的送达时间，毫秒级 Unix 时间戳
         Long deliverTimeStamp = couponTemplateDO.getValidEndTime().getTime();
 
         // 构建消息体
@@ -201,7 +201,7 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
                 .withPayload(messageBody)
                 .setHeader(MessageConst.PROPERTY_KEYS, messageKeys)
                 .build();
-
+        System.out.println(messageKeys);
         // 执行 RocketMQ5.x 消息队列发送&异常处理逻辑
         SendResult sendResult;
         try {
