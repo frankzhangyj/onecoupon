@@ -184,7 +184,7 @@ public class CouponTaskServiceImpl extends ServiceImpl<CouponTaskMapper, CouponT
     }
 
 
-    // 难点 这一部分完全可以用rocketmq处理 注意bean的创建时期
+    // 难点 这一部分完全可以用rocketmq处理 注意bean的生命周期与注入时期
     /**
      * 优惠券延迟刷新发送条数兜底消费者｜这是兜底策略，一般来说不会执行这段逻辑
      * 如果延迟消息没有持久化成功，或者 Redis 挂了怎么办？后续可以人工处理
