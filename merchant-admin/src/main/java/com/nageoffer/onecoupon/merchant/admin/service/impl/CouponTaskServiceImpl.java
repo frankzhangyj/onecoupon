@@ -49,6 +49,8 @@ import com.nageoffer.onecoupon.merchant.admin.dao.entity.CouponTaskDO;
 import com.nageoffer.onecoupon.merchant.admin.dao.mapper.CouponTaskMapper;
 import com.nageoffer.onecoupon.merchant.admin.dto.req.CouponTaskCreateReqDTO;
 import com.nageoffer.onecoupon.merchant.admin.dto.resp.CouponTemplateQueryRespDTO;
+import com.nageoffer.onecoupon.merchant.admin.mq.event.CouponTaskExecuteEvent;
+import com.nageoffer.onecoupon.merchant.admin.mq.producer.CouponTaskActualExecuteProducer;
 import com.nageoffer.onecoupon.merchant.admin.service.CouponTaskService;
 import com.nageoffer.onecoupon.merchant.admin.service.CouponTemplateService;
 import com.nageoffer.onecoupon.merchant.admin.service.handler.excel.RowCountListener;
@@ -74,7 +76,12 @@ import java.util.UUID;
 import java.util.concurrent.*;
 
 /**
+ *  难点 这一部分完全可以用rocketmq处理(将请求放到mq中 立即发送消息) 使用线程池处理具有不确定性，需要先执行再延迟确认。 注意bean的生命周期与注入时期
+ *  如果是通过mq实现 先是将推送任务消息发送到一个特定的topic 然后在对应消费者中处理发送的任务(先修改数据到数据库 然后再根据发送类型发送到对应mq)
+ *
  * 优惠券推送业务逻辑实现层
+ *  *      先是将推送任务存储到数据库 然后根据推送类型是立即发送(直接交给mq 在对应消费者中通过分发处理器处理)
+ *  *      延迟发送(利用xxl-job定时检查是否存在任务已经到达延迟时间  通过xxl-job处理器再处理)
  */
 @Service
 @Slf4j
@@ -84,6 +91,7 @@ public class CouponTaskServiceImpl extends ServiceImpl<CouponTaskMapper, CouponT
     private final CouponTemplateService couponTemplateService;
     private final CouponTaskMapper couponTaskMapper;
     private final RedissonClient redissonClient;
+    private final CouponTaskActualExecuteProducer couponTaskActualExecuteProducer;
     // 难点
     // 创建异步线程执行解析excel的长时间操作
     private final ExecutorService executorService = new ThreadPoolExecutor(
@@ -97,6 +105,11 @@ public class CouponTaskServiceImpl extends ServiceImpl<CouponTaskMapper, CouponT
             new ThreadPoolExecutor.DiscardPolicy()
     );
 
+    /**
+     * 先是将推送任务存储到数据库 然后根据推送类型是立即发送(直接交给mq 在对应消费者中通过分发处理器处理)
+     * 延迟发送(利用xxl-job定时检查是否存在任务已经到达延迟时间  通过xxl-job处理器再处理)
+     * @param requestParam 请求参数
+     */
     @Transactional(rollbackFor = Exception.class) // 将数据库插入和线程池和延时队列的执行绑定 保证数据一致性
     @Override
     public void createCouponTask(CouponTaskCreateReqDTO requestParam) {
@@ -156,6 +169,15 @@ public class CouponTaskServiceImpl extends ServiceImpl<CouponTaskMapper, CouponT
         RDelayedQueue<Object> delayedQueue = redissonClient.getDelayedQueue(blockingDeque);
         // 这里延迟时间设置 20 秒，原因是我们笃定上面线程池 20 秒之内就能结束任务
         delayedQueue.offer(delayJsonObject, 20, TimeUnit.SECONDS);
+
+        // 如果是立即发送任务，直接调用消息队列进行发送流程
+        if (Objects.equals(requestParam.getSendType(), CouponTaskSendTypeEnum.IMMEDIATE.getType())) {
+            // 执行优惠券推送业务，正式向用户发放优惠券
+            CouponTaskExecuteEvent couponTaskExecuteEvent = CouponTaskExecuteEvent.builder()
+                    .couponTaskId(couponTaskDO.getId())
+                    .build();
+            couponTaskActualExecuteProducer.sendMessage(couponTaskExecuteEvent);
+        }
     }
 
     // 异步处理excel行数统计 并更新数据库
@@ -184,7 +206,7 @@ public class CouponTaskServiceImpl extends ServiceImpl<CouponTaskMapper, CouponT
     }
 
 
-    // 难点 这一部分完全可以用rocketmq处理 注意bean的生命周期与注入时期
+
     /**
      * 优惠券延迟刷新发送条数兜底消费者｜这是兜底策略，一般来说不会执行这段逻辑
      * 如果延迟消息没有持久化成功，或者 Redis 挂了怎么办？后续可以人工处理
