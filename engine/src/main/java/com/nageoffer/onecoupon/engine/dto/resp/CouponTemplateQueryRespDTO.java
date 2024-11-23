@@ -32,53 +32,102 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.dao.sharding;
+package com.nageoffer.onecoupon.engine.dto.resp;
 
-import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
-import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
-import org.apache.shardingsphere.sharding.api.sharding.standard.StandardShardingAlgorithm;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
 
-import java.util.Collection;
-import java.util.List;
+import java.util.Date;
 
 /**
- * 基于 HashMod 方式自定义分表算法
+ * 优惠券模板查询接口返回参数实体
  * <p>
  * 作者：马丁
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-10
+ * 开发时间：2024-07-14
  */
-public final class TableHashModShardingAlgorithm implements StandardShardingAlgorithm<Long> {
+@Data
+@Schema(description = "优惠券模板查询返回实体")
+public class CouponTemplateQueryRespDTO {
 
     /**
-     * 这里直接用库中可用表的数量对hash值取余
-     * @param availableTargetNames
-     * @param shardingValue
-     * @return
+     * 优惠券id
      */
-    @Override
-    public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<Long> shardingValue) {
-        long id = shardingValue.getValue();
-        int shardingCount = availableTargetNames.size();
-        // hash值%shardingCount 表示将hash值控制在shardingCount范围内 这里的shardingCount代表前面得到的库中表的数量 不会出现偶数hash值只去偶数表
-        int mod = (int) hashShardingValue(id) % shardingCount;
-        int index = 0;
-        for (String targetName : availableTargetNames) {
-            if (index == mod) {
-                return targetName;
-            }
-            index++;
-        }
-        throw new IllegalArgumentException("No target found for value: " + id);
-    }
+    @Schema(description = "优惠券id")
+    private String id;
 
-    @Override
-    public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<Long> shardingValue) {
-        // 暂无范围分片场景，默认返回空
-        return List.of();
-    }
+    /**
+     * 优惠券名称
+     */
+    @Schema(description = "优惠券名称")
+    private String name;
 
-    private long hashShardingValue(final Comparable<?> shardingValue) {
-        return Math.abs((long) shardingValue.hashCode());
-    }
+    /**
+     * 店铺编号
+     */
+    @Schema(description = "店铺编号")
+    private String shopNumber;
+
+    /**
+     * 优惠券来源 0：店铺券 1：平台券
+     */
+    @Schema(description = "优惠券来源 0：店铺券 1：平台券")
+    private Integer source;
+
+    /**
+     * 优惠对象 0：商品专属 1：全店通用
+     */
+    @Schema(description = "优惠对象 0：商品专属 1：全店通用")
+    private Integer target;
+
+    /**
+     * 优惠商品编码
+     */
+    @Schema(description = "优惠商品编码")
+    private String goods;
+
+    /**
+     * 优惠类型 0：立减券 1：满减券 2：折扣券
+     */
+    @Schema(description = "优惠类型 0：立减券 1：满减券 2：折扣券")
+    private Integer type;
+
+    /**
+     * 有效期开始时间
+     */
+    @Schema(description = "有效期开始时间")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private Date validStartTime;
+
+    /**
+     * 有效期结束时间
+     */
+    @Schema(description = "有效期结束时间")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private Date validEndTime;
+
+    /**
+     * 库存
+     */
+    @Schema(description = "库存")
+    private Integer stock;
+
+    /**
+     * 领取规则
+     */
+    @Schema(description = "领取规则")
+    private String receiveRule;
+
+    /**
+     * 消耗规则
+     */
+    @Schema(description = "消耗规则")
+    private String consumeRule;
+
+    /**
+     * 优惠券状态 0：生效中 1：已结束
+     */
+    @Schema(description = "优惠券状态 0：生效中 1：已结束")
+    private Integer status;
 }

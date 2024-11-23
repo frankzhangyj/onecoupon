@@ -92,8 +92,7 @@ public class CouponTaskServiceImpl extends ServiceImpl<CouponTaskMapper, CouponT
     private final CouponTaskMapper couponTaskMapper;
     private final RedissonClient redissonClient;
     private final CouponTaskActualExecuteProducer couponTaskActualExecuteProducer;
-    // 难点
-    // 创建异步线程执行解析excel的长时间操作
+    // 难点 创建异步线程执行解析excel的长时间操作
     private final ExecutorService executorService = new ThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Runtime.getRuntime().availableProcessors() << 1,
@@ -133,8 +132,8 @@ public class CouponTaskServiceImpl extends ServiceImpl<CouponTaskMapper, CouponT
                         : CouponTaskStatusEnum.PENDING.getStatus()
         );
 
-        // 难点
-        // hutool会直接将excel文件加载到内存中 getLastRowNum()来自POI库，POI 通常会缓存Excel文件中的数据以便于后续的操作和访问，所以不会被GC导致内存飙升。
+        //
+        // 难点 hutool会直接将excel文件加载到内存中 getLastRowNum()来自POI库，POI 通常会缓存Excel文件中的数据以便于后续的操作和访问，所以不会被GC导致内存飙升。
         // 而EasyExcel逐行读取只将一行数据加载到内存 通过流式处理，将excel一行一行进行读取进行自增来读取总行记录数，所以内存有明显的降低。
         // 使用hutool读取excel总行数会导致严重内存占用
 /*        // 读取 Excel 文件

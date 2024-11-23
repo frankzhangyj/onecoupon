@@ -32,53 +32,65 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.dao.sharding;
+package com.nageoffer.onecoupon.engine.config;
 
-import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
-import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
-import org.apache.shardingsphere.sharding.api.sharding.standard.StandardShardingAlgorithm;
+import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import org.apache.ibatis.reflection.MetaObject;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-import java.util.Collection;
-import java.util.List;
+import java.util.Date;
 
 /**
- * 基于 HashMod 方式自定义分表算法
+ * 数据库持久层配置类｜配置 MyBatis-Plus 相关分页插件等
  * <p>
  * 作者：马丁
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-10
+ * 开发时间：2024-07-17
  */
-public final class TableHashModShardingAlgorithm implements StandardShardingAlgorithm<Long> {
+@Configuration
+public class DataBaseConfiguration {
 
     /**
-     * 这里直接用库中可用表的数量对hash值取余
-     * @param availableTargetNames
-     * @param shardingValue
-     * @return
+     * MyBatis-Plus MySQL 分页插件
      */
-    @Override
-    public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<Long> shardingValue) {
-        long id = shardingValue.getValue();
-        int shardingCount = availableTargetNames.size();
-        // hash值%shardingCount 表示将hash值控制在shardingCount范围内 这里的shardingCount代表前面得到的库中表的数量 不会出现偶数hash值只去偶数表
-        int mod = (int) hashShardingValue(id) % shardingCount;
-        int index = 0;
-        for (String targetName : availableTargetNames) {
-            if (index == mod) {
-                return targetName;
-            }
-            index++;
+    @Bean
+    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        return interceptor;
+    }
+
+    /**
+     * MyBatis-Plus 源数据自动填充类
+     */
+    @Bean
+    public MyMetaObjectHandler myMetaObjectHandler() {
+        return new MyMetaObjectHandler();
+    }
+
+    /**
+     * MyBatis-Plus 源数据自动填充类
+     * <p>
+     * 作者：马丁
+     * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+     * 开发时间：2024-07-08
+     */
+    static class MyMetaObjectHandler implements MetaObjectHandler {
+
+        @Override
+        public void insertFill(MetaObject metaObject) {
+            strictInsertFill(metaObject, "createTime", Date::new, Date.class);
+            strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
+            strictInsertFill(metaObject, "delFlag", () -> 0, Integer.class);
         }
-        throw new IllegalArgumentException("No target found for value: " + id);
-    }
 
-    @Override
-    public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<Long> shardingValue) {
-        // 暂无范围分片场景，默认返回空
-        return List.of();
-    }
-
-    private long hashShardingValue(final Comparable<?> shardingValue) {
-        return Math.abs((long) shardingValue.hashCode());
+        @Override
+        public void updateFill(MetaObject metaObject) {
+            strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
+        }
     }
 }

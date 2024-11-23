@@ -44,8 +44,7 @@ import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.messaging.Message;
 
 /**
- * 难点
- * RocketMQ 抽象公共发送消息组件 模板方法模式简化消息队列发送功能
+ * 难点 RocketMQ 抽象公共发送消息组件 模板方法模式简化消息队列发送功能
  * 定义一个父类的抽象类 定义一个公共方法用来发送消息 定义两个抽象方法用来构建不同消息任务的属性
  */
 @RequiredArgsConstructor

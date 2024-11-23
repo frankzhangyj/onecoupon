@@ -247,7 +247,11 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
 //        return DigestUtil.md5Hex(JSON.toJSONBytes(requestParam));
 //    }
 
-
+    @LogRecord(
+            success = "结束优惠券",
+            type = "CouponTemplate",
+            bizNo = "{{#couponTemplateId}}"
+    )
     @Override
     public void terminateCouponTemplate(String couponTemplateId) {
         // 验证是否存在数据横向越权
@@ -283,11 +287,9 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
     }
 
     /**
-     * 难点
-     * mysql中默认隔离级别rr事务自动提交 一个语句就是一个事务 在mvcc控制下使用增删改或者select for update会自动添加排他锁 都是一种当前读
+     * 难点 mysql中默认隔离级别rr事务自动提交 一个语句就是一个事务 在mvcc控制下使用增删改或者select for update会自动添加排他锁 都是一种当前读
      * 如果只是单纯select 在rc级别下每一次都会读到事务更新后的数据 rr级别下每一次读都只会读到第一次读之前的事务数据 都是一种快照读
      * 所以并发一条更新语句不用加transactional注解开启事务 由于当前读自动添加排他锁 不用担心并发问题 会顺序执行
-     *
      * @param requestParam 请求参数
      */
     @LogRecord(
@@ -344,7 +346,7 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
     }
 
     @Override
-    public CouponTemplateQueryRespDTO findCouponTemplateById(String couponTemplateId) {
+        public CouponTemplateQueryRespDTO findCouponTemplateById(String couponTemplateId) {
         Long couponTemplateId1 = Long.valueOf(couponTemplateId);
         LambdaQueryWrapper<CouponTemplateDO> queryWrapper = Wrappers.lambdaQuery(CouponTemplateDO.class)
                 .eq(CouponTemplateDO::getShopNumber, UserContext.getShopNumber())

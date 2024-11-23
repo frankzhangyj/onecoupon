@@ -32,53 +32,31 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.dao.sharding;
+package com.nageoffer.onecoupon.engine.dto.req;
 
-import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
-import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
-import org.apache.shardingsphere.sharding.api.sharding.standard.StandardShardingAlgorithm;
-
-import java.util.Collection;
-import java.util.List;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
 
 /**
- * 基于 HashMod 方式自定义分表算法
+ * 优惠券模板查询接口请求参数实体
  * <p>
  * 作者：马丁
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-10
+ * 开发时间：2024-07-14
  */
-public final class TableHashModShardingAlgorithm implements StandardShardingAlgorithm<Long> {
+@Data
+@Schema(description = "优惠券模板查询请求参数实体")
+public class CouponTemplateQueryReqDTO {
 
     /**
-     * 这里直接用库中可用表的数量对hash值取余
-     * @param availableTargetNames
-     * @param shardingValue
-     * @return
+     * 店铺编号
      */
-    @Override
-    public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<Long> shardingValue) {
-        long id = shardingValue.getValue();
-        int shardingCount = availableTargetNames.size();
-        // hash值%shardingCount 表示将hash值控制在shardingCount范围内 这里的shardingCount代表前面得到的库中表的数量 不会出现偶数hash值只去偶数表
-        int mod = (int) hashShardingValue(id) % shardingCount;
-        int index = 0;
-        for (String targetName : availableTargetNames) {
-            if (index == mod) {
-                return targetName;
-            }
-            index++;
-        }
-        throw new IllegalArgumentException("No target found for value: " + id);
-    }
+    @Schema(description = "店铺编号", example = "1810714735922956666", required = true)
+    private String shopNumber;
 
-    @Override
-    public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<Long> shardingValue) {
-        // 暂无范围分片场景，默认返回空
-        return List.of();
-    }
-
-    private long hashShardingValue(final Comparable<?> shardingValue) {
-        return Math.abs((long) shardingValue.hashCode());
-    }
+    /**
+     * 优惠券模板id
+     */
+    @Schema(description = "优惠券模板id", example = "1810966706881941507", required = true)
+    private String couponTemplateId;
 }

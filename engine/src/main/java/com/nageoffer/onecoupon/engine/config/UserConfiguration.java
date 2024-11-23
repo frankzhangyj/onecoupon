@@ -32,53 +32,66 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.dao.sharding;
+package com.nageoffer.onecoupon.engine.config;
 
-import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
-import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
-import org.apache.shardingsphere.sharding.api.sharding.standard.StandardShardingAlgorithm;
-
-import java.util.Collection;
-import java.util.List;
+import com.nageoffer.onecoupon.engine.common.context.UserContext;
+import com.nageoffer.onecoupon.engine.common.context.UserInfoDTO;
+import jakarta.annotation.Nullable;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * 基于 HashMod 方式自定义分表算法
+ * 用户相关配置类
  * <p>
  * 作者：马丁
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-10
+ * 开发时间：2024-07-17
  */
-public final class TableHashModShardingAlgorithm implements StandardShardingAlgorithm<Long> {
+@Configuration
+public class UserConfiguration implements WebMvcConfigurer {
 
     /**
-     * 这里直接用库中可用表的数量对hash值取余
-     * @param availableTargetNames
-     * @param shardingValue
-     * @return
+     * 用户信息传输拦截器
+     */
+    @Bean
+    public UserTransmitInterceptor userTransmitInterceptor() {
+        return new UserTransmitInterceptor();
+    }
+
+    /**
+     * 添加用户信息传递过滤器至相关路径拦截
      */
     @Override
-    public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<Long> shardingValue) {
-        long id = shardingValue.getValue();
-        int shardingCount = availableTargetNames.size();
-        // hash值%shardingCount 表示将hash值控制在shardingCount范围内 这里的shardingCount代表前面得到的库中表的数量 不会出现偶数hash值只去偶数表
-        int mod = (int) hashShardingValue(id) % shardingCount;
-        int index = 0;
-        for (String targetName : availableTargetNames) {
-            if (index == mod) {
-                return targetName;
-            }
-            index++;
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(userTransmitInterceptor())
+                .addPathPatterns("/**");
+    }
+
+    /**
+     * 用户信息传输拦截器
+     * <p>
+     * 作者：马丁
+     * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+     * 开发时间：2024-07-09
+     */
+    static class UserTransmitInterceptor implements HandlerInterceptor {
+
+        @Override
+        public boolean preHandle(@Nullable HttpServletRequest request, @Nullable HttpServletResponse response, @Nullable Object handler) throws Exception {
+            // 用户属于非核心功能，这里先通过模拟的形式代替。后续如果需要后管展示，会重构该代码
+            UserInfoDTO userInfoDTO = new UserInfoDTO("1810518709471555585", "pdd45305558318", 1810714735922956666L);
+            UserContext.setUser(userInfoDTO);
+            return true;
         }
-        throw new IllegalArgumentException("No target found for value: " + id);
-    }
 
-    @Override
-    public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<Long> shardingValue) {
-        // 暂无范围分片场景，默认返回空
-        return List.of();
-    }
-
-    private long hashShardingValue(final Comparable<?> shardingValue) {
-        return Math.abs((long) shardingValue.hashCode());
+        @Override
+        public void afterCompletion(@Nullable HttpServletRequest request, @Nullable HttpServletResponse response, @Nullable Object handler, Exception exception) throws Exception {
+            UserContext.removeUser();
+        }
     }
 }

@@ -32,8 +32,9 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.dao.sharding;
+package com.nageoffer.onecoupon.engine.dao.sharding;
 
+import cn.hutool.core.lang.Singleton;
 import lombok.Getter;
 import org.apache.shardingsphere.infra.util.exception.ShardingSpherePreconditions;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
@@ -47,10 +48,6 @@ import java.util.Properties;
 
 /**
  * 基于 HashMod 方式自定义分库算法
- * <p>
- * 作者：马丁
- * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-10
  */
 public final class DBHashModShardingAlgorithm implements StandardShardingAlgorithm<Long> {
 
@@ -60,13 +57,6 @@ public final class DBHashModShardingAlgorithm implements StandardShardingAlgorit
     private int shardingCount;
     private static final String SHARDING_COUNT_KEY = "sharding-count";
 
-    /**
-     * 自定义分库算法可以避免直接mod库数量导致数据分布不均(偶数库中只有偶数表有数据)
-     * 结合shardingCount可以实现数据库分配更加均匀
-     * @param availableTargetNames
-     * @param shardingValue
-     * @return
-     */
     @Override
     public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<Long> shardingValue) {
         long id = shardingValue.getValue();
@@ -94,11 +84,16 @@ public final class DBHashModShardingAlgorithm implements StandardShardingAlgorit
     public void init(Properties props) {
         this.props = props;
         shardingCount = getShardingCount(props);
+        Singleton.put(this);
     }
 
     private int getShardingCount(final Properties props) {
         ShardingSpherePreconditions.checkState(props.containsKey(SHARDING_COUNT_KEY), () -> new ShardingAlgorithmInitializationException(getType(), "Sharding count cannot be null."));
         return Integer.parseInt(props.getProperty(SHARDING_COUNT_KEY));
+    }
+
+    public int getShardingMod(long id, int availableTargetSize) {
+        return (int) hashShardingValue(id) % shardingCount / (shardingCount / availableTargetSize);
     }
 
     private long hashShardingValue(final Comparable<?> shardingValue) {

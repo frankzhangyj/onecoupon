@@ -34,17 +34,19 @@
 
 package com.nageoffer.onecoupon.engine;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * 引擎服务｜负责优惠券单个查看、列表查看、锁定以及核销等功能
  * <p>
- * 作者：frankZ
+ * 作者：马丁
  * 加星球群：早加入就是优势！500人内部沟通群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * ：2024-07-08
+ * 开发时间：2024-07-08
  */
 @SpringBootApplication
+@MapperScan("com.nageoffer.onecoupon.engine.dao.mapper")
 public class EngineApplication {
 
     public static void main(String[] args) {
