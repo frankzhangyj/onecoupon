@@ -32,29 +32,30 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.common.constant;
+package com.nageoffer.onecoupon.engine.config;
+
+import org.redisson.api.RBloomFilter;
+import org.redisson.api.RedissonClient;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /**
- * 分布式 Redis 缓存引擎层常量类
- * <p>
- * 作者：马丁
- * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-14
+ * 布隆过滤器配置类
  */
-public final class EngineRedisConstant {
+@Configuration
+public class RBloomFilterConfiguration {
 
     /**
-     * 优惠券模板缓存 Key
+     * 难点 布隆过滤器的容量就取决于业务的数量 布隆过滤器大小不能超过 476MB 较低的误判率意味着需要更大的位数组和更多的哈希函数
+     * 一个亿的元素，如果千分之一的误判率，那么实际容量大概在 170M 左右。
+     * 另外在对布隆过滤器进行初始化的时候，会一次性申请对应的内存，这个需要额外注意下，避免初始化超大容量布隆过滤器时内存不足问题。
+     * 如果数据量300亿 可以设置多个布隆过滤器分片 根据模板 ID 进行分片，确定要操作的布隆过滤器，从而在该分片上进行操作。
+     * 优惠券查询缓存穿透布隆过滤器
      */
-    public static final String COUPON_TEMPLATE_KEY = "one-coupon_engine:template:%s";
-
-    /**
-     * 优惠券模板缓存分布式锁 Key
-     */
-    public static final String LOCK_COUPON_TEMPLATE_KEY = "one-coupon_engine:lock:template:%s";
-
-    /**
-     * 优惠券模板缓存空值 Key
-     */
-    public static final String COUPON_TEMPLATE_IS_NULL_KEY = "one-coupon_engine:template_is_null:%s";
+    @Bean
+    public RBloomFilter<String> couponTemplateQueryBloomFilter(RedissonClient redissonClient) {
+        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter("couponTemplateQueryBloomFilter");
+        bloomFilter.tryInit(640L, 0.001);
+        return bloomFilter;
+    }
 }

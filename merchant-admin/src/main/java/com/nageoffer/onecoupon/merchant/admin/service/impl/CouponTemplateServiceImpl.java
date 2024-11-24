@@ -71,6 +71,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -105,6 +106,8 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
     private final ConfigurableEnvironment configurableEnvironment;
     // 模板方法模式的具体任务生产者的子类
     private final CouponTemplateDelayExecuteStatusProducer couponTemplateDelayExecuteStatusProducer;
+    // 布隆过滤器防止缓存穿透
+    RBloomFilter<String> couponTemplateQueryBloomFilter;
 
     @LogRecord(
             success = """
@@ -207,6 +210,9 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
                 .delayTime(couponTemplateDO.getValidEndTime().getTime())
                 .build();
         couponTemplateDelayExecuteStatusProducer.sendMessage(templateDelayEvent);
+
+        // 添加优惠券模板 ID 到布隆过滤器
+        couponTemplateQueryBloomFilter.add(String.valueOf(couponTemplateDO.getId()));
 //        // 构建消息体
 //        String messageKeys = UUID.randomUUID().toString();
 //        Message<JSONObject> message = MessageBuilder
