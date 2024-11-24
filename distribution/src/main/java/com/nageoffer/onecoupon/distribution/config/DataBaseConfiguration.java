@@ -32,80 +32,65 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.task;
+package com.nageoffer.onecoupon.distribution.config;
 
-import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.IdUtil;
-import com.alibaba.excel.EasyExcel;
-import com.alibaba.excel.annotation.ExcelProperty;
-import com.alibaba.excel.annotation.write.style.ColumnWidth;
-import com.alibaba.excel.util.ListUtils;
-import com.github.javafaker.Faker;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.junit.jupiter.api.Test;
+import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import org.apache.ibatis.reflection.MetaObject;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.Locale;
+import java.util.Date;
 
 /**
- * 百万 Excel 文件生成单元测试
+ * 数据库持久层配置类｜配置 MyBatis-Plus 相关分页插件等
+ * <p>
+ * 作者：马丁
+ * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+ * 开发时间：2024-07-25
  */
-public final class ExcelGenerateTests {
+@Configuration
+public class DataBaseConfiguration {
 
     /**
-     * 写入优惠券推送示例 Excel 的数据，自行控制即可
+     * MyBatis-Plus MySQL 分页插件
      */
-    private final int writeNum = 5001;
-    private final Faker faker = new Faker(Locale.CHINA);
-    // springboot模块中的各种文件的当前工作目录都是模块目录
-    private final String excelPath = Paths.get("").toAbsolutePath().getParent() + "/tmp";
-
-    @Test
-    public void testExcelGenerate() {
-        if (!FileUtil.exist(excelPath)) {
-            FileUtil.mkdir(excelPath);
-        }
-        String fileName = excelPath + "/oneCoupon任务推送Excel.xlsx";
-        EasyExcel.write(fileName, ExcelGenerateDemoData.class).sheet("优惠券推送列表").doWrite(data());
+    @Bean
+    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        return interceptor;
     }
-
-    private List<ExcelGenerateDemoData> data() {
-        List<ExcelGenerateDemoData> list = ListUtils.newArrayList();
-        for (int i = 0; i < writeNum; i++) {
-            ExcelGenerateDemoData data = ExcelGenerateDemoData.builder()
-                    .mail(faker.number().digits(10) + "@163.com")
-                    .phone(faker.phoneNumber().cellPhone())
-                    .userId(IdUtil.getSnowflakeNextIdStr())
-                    .build();
-            list.add(data);
-        }
-        return list;
-    }
-
 
     /**
-     * 百万 Excel 生成器示例数据模型
+     * MyBatis-Plus 源数据自动填充类
      */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    static class ExcelGenerateDemoData {
+    @Bean
+    public MyMetaObjectHandler myMetaObjectHandler() {
+        return new MyMetaObjectHandler();
+    }
 
-        @ColumnWidth(30)
-        @ExcelProperty("用户ID")
-        private String userId;
+    /**
+     * MyBatis-Plus 源数据自动填充类
+     * <p>
+     * 作者：马丁
+     * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+     * 开发时间：2024-07-08
+     */
+    static class MyMetaObjectHandler implements MetaObjectHandler {
 
-        @ColumnWidth(20)
-        @ExcelProperty("手机号")
-        private String phone;
+        @Override
+        public void insertFill(MetaObject metaObject) {
+            strictInsertFill(metaObject, "createTime", Date::new, Date.class);
+            strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
+            strictInsertFill(metaObject, "delFlag", () -> 0, Integer.class);
+        }
 
-        @ColumnWidth(30)
-        @ExcelProperty("邮箱")
-        private String mail;
+        @Override
+        public void updateFill(MetaObject metaObject) {
+            strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
+        }
     }
 }

@@ -32,80 +32,97 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.task;
+package com.nageoffer.onecoupon.distribution.dao.entity;
 
-import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.IdUtil;
-import com.alibaba.excel.EasyExcel;
-import com.alibaba.excel.annotation.ExcelProperty;
-import com.alibaba.excel.annotation.write.style.ColumnWidth;
-import com.alibaba.excel.util.ListUtils;
-import com.github.javafaker.Faker;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.junit.jupiter.api.Test;
 
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.Locale;
+import java.util.Date;
 
 /**
- * 百万 Excel 文件生成单元测试
+ * 用户优惠券数据库持久层实体
+ * <p>
+ * 作者：马丁
+ * 加项目群：早加入就是优势！500人内部沟通群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+ * 开发时间：2024-07-14
  */
-public final class ExcelGenerateTests {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@TableName("t_user_coupon")
+public class UserCouponDO {
 
     /**
-     * 写入优惠券推送示例 Excel 的数据，自行控制即可
+     * id
      */
-    private final int writeNum = 5001;
-    private final Faker faker = new Faker(Locale.CHINA);
-    // springboot模块中的各种文件的当前工作目录都是模块目录
-    private final String excelPath = Paths.get("").toAbsolutePath().getParent() + "/tmp";
-
-    @Test
-    public void testExcelGenerate() {
-        if (!FileUtil.exist(excelPath)) {
-            FileUtil.mkdir(excelPath);
-        }
-        String fileName = excelPath + "/oneCoupon任务推送Excel.xlsx";
-        EasyExcel.write(fileName, ExcelGenerateDemoData.class).sheet("优惠券推送列表").doWrite(data());
-    }
-
-    private List<ExcelGenerateDemoData> data() {
-        List<ExcelGenerateDemoData> list = ListUtils.newArrayList();
-        for (int i = 0; i < writeNum; i++) {
-            ExcelGenerateDemoData data = ExcelGenerateDemoData.builder()
-                    .mail(faker.number().digits(10) + "@163.com")
-                    .phone(faker.phoneNumber().cellPhone())
-                    .userId(IdUtil.getSnowflakeNextIdStr())
-                    .build();
-            list.add(data);
-        }
-        return list;
-    }
-
+    private Long id;
 
     /**
-     * 百万 Excel 生成器示例数据模型
+     * 用户id
      */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    static class ExcelGenerateDemoData {
+    private Long userId;
 
-        @ColumnWidth(30)
-        @ExcelProperty("用户ID")
-        private String userId;
+    /**
+     * 优惠券模板id
+     */
+    private Long couponTemplateId;
 
-        @ColumnWidth(20)
-        @ExcelProperty("手机号")
-        private String phone;
+    /**
+     * 领取时间
+     */
+    private Date receiveTime;
 
-        @ColumnWidth(30)
-        @ExcelProperty("邮箱")
-        private String mail;
-    }
+    /**
+     * 领取次数
+     */
+    private Integer receiveCount;
+
+    /**
+     * 有效期开始时间
+     */
+    private Date validStartTime;
+
+    /**
+     * 有效期结束时间
+     */
+    private Date validEndTime;
+
+    /**
+     * 使用时间
+     */
+    private Date useTime;
+
+    /**
+     * 券来源 0：领券中心 1：平台发放 2：店铺领取
+     */
+    private Integer source;
+
+    /**
+     * 状态 0：未使用 1：锁定 2：已使用 3：已过期 4：已撤回
+     */
+    private Integer status;
+
+    /**
+     * 创建时间
+     */
+    @TableField(fill = FieldFill.INSERT)
+    private Date createTime;
+
+    /**
+     * 修改时间
+     */
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Date updateTime;
+
+    /**
+     * 删除标识 0：未删除 1：已删除
+     */
+    @TableField(fill = FieldFill.INSERT)
+    private Integer delFlag;
 }

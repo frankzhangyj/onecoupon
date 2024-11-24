@@ -107,7 +107,7 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
     // 模板方法模式的具体任务生产者的子类
     private final CouponTemplateDelayExecuteStatusProducer couponTemplateDelayExecuteStatusProducer;
     // 布隆过滤器防止缓存穿透
-    RBloomFilter<String> couponTemplateQueryBloomFilter;
+    private final RBloomFilter<String> couponTemplateQueryBloomFilter;
 
     @LogRecord(
             success = """

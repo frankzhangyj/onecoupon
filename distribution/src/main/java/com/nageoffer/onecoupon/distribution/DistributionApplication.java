@@ -34,17 +34,15 @@
 
 package com.nageoffer.onecoupon.distribution;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * 分发模块｜负责按批次分发用户优惠券，可提供应用弹框推送、站内信或短信通知等
- * <p>
- * 作者：frankZ
- * 加星球群：早加入就是优势！500人内部沟通群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * ：2024-07-08
  */
 @SpringBootApplication
+@MapperScan("com.nageoffer.onecoupon.distribution.dao.mapper")
 public class DistributionApplication {
 
     public static void main(String[] args) {

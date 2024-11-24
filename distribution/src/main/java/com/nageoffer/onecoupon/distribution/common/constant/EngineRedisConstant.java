@@ -32,80 +32,24 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.task;
-
-import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.IdUtil;
-import com.alibaba.excel.EasyExcel;
-import com.alibaba.excel.annotation.ExcelProperty;
-import com.alibaba.excel.annotation.write.style.ColumnWidth;
-import com.alibaba.excel.util.ListUtils;
-import com.github.javafaker.Faker;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.junit.jupiter.api.Test;
-
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.Locale;
+package com.nageoffer.onecoupon.distribution.common.constant;
 
 /**
- * 百万 Excel 文件生成单元测试
+ * 分布式 Redis 缓存引擎层常量类
+ * <p>
+ * 作者：马丁
+ * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+ * 开发时间：2024-07-14
  */
-public final class ExcelGenerateTests {
+public final class EngineRedisConstant {
 
     /**
-     * 写入优惠券推送示例 Excel 的数据，自行控制即可
+     * 优惠券模板缓存 Key
      */
-    private final int writeNum = 5001;
-    private final Faker faker = new Faker(Locale.CHINA);
-    // springboot模块中的各种文件的当前工作目录都是模块目录
-    private final String excelPath = Paths.get("").toAbsolutePath().getParent() + "/tmp";
-
-    @Test
-    public void testExcelGenerate() {
-        if (!FileUtil.exist(excelPath)) {
-            FileUtil.mkdir(excelPath);
-        }
-        String fileName = excelPath + "/oneCoupon任务推送Excel.xlsx";
-        EasyExcel.write(fileName, ExcelGenerateDemoData.class).sheet("优惠券推送列表").doWrite(data());
-    }
-
-    private List<ExcelGenerateDemoData> data() {
-        List<ExcelGenerateDemoData> list = ListUtils.newArrayList();
-        for (int i = 0; i < writeNum; i++) {
-            ExcelGenerateDemoData data = ExcelGenerateDemoData.builder()
-                    .mail(faker.number().digits(10) + "@163.com")
-                    .phone(faker.phoneNumber().cellPhone())
-                    .userId(IdUtil.getSnowflakeNextIdStr())
-                    .build();
-            list.add(data);
-        }
-        return list;
-    }
-
+    public static final String COUPON_TEMPLATE_KEY = "one-coupon_engine:template:%s";
 
     /**
-     * 百万 Excel 生成器示例数据模型
+     * 用户已领取优惠券列表模板 Key
      */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    static class ExcelGenerateDemoData {
-
-        @ColumnWidth(30)
-        @ExcelProperty("用户ID")
-        private String userId;
-
-        @ColumnWidth(20)
-        @ExcelProperty("手机号")
-        private String phone;
-
-        @ColumnWidth(30)
-        @ExcelProperty("邮箱")
-        private String mail;
-    }
+    public static final String USER_COUPON_TEMPLATE_LIST_KEY = "one-coupon_engine:user-template-list:%s";
 }
