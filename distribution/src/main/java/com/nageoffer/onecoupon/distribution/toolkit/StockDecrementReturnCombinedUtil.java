@@ -32,66 +32,37 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.config;
-
-import com.nageoffer.onecoupon.merchant.admin.common.context.UserContext;
-import com.nageoffer.onecoupon.merchant.admin.common.context.UserInfoDTO;
-import jakarta.annotation.Nullable;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+package com.nageoffer.onecoupon.distribution.toolkit;
 
 /**
- * 用户相关配置类
- * <p>
- * 作者：frankZ
- * 
- * ：2024-07-09
+ * 用户优惠券执行 LUA 脚本返回数据｜通过位移形式提高性能，是个小优化
+ * 因为预计每 5000 条记录保存次数据库，2^12 能表示 4096，所以这里采用了 2^13
  */
-@Configuration
-public class UserConfiguration implements WebMvcConfigurer {
+public class StockDecrementReturnCombinedUtil {
 
     /**
-     * 用户信息传输拦截器
+     * 2^13 > 5000, 所以用 13 位来表示第二个字段
      */
-    @Bean
-    public UserTransmitInterceptor userTransmitInterceptor() {
-        return new UserTransmitInterceptor();
+    private static final int SECOND_FIELD_BITS = 13;
+
+    /**
+     * 将两个字段组合成一个int
+     */
+    public static int combineFields(boolean decrementFlag, int userRecord) {
+        return (decrementFlag ? 1 : 0) << SECOND_FIELD_BITS | userRecord;
     }
 
     /**
-     * 添加用户信息传递过滤器至相关路径拦截
+     * 从组合的int中提取第一个字段（0或1）
      */
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(userTransmitInterceptor())
-                .addPathPatterns("/**");
+    public static boolean extractFirstField(long combined) {
+        return (combined >> SECOND_FIELD_BITS) != 0;
     }
 
     /**
-     * 用户信息传输拦截器
-     * <p>
-     * 作者：frankZ
-     * 
-     * ：2024-07-09
+     * 从组合的int中提取第二个字段（1到5000之间的数字）
      */
-    static class UserTransmitInterceptor implements HandlerInterceptor {
-
-        @Override
-        public boolean preHandle(@Nullable HttpServletRequest request, @Nullable HttpServletResponse response, @Nullable Object handler) throws Exception {
-            // 用户属于非核心功能，这里先通过模拟的形式代替。后续如果需要后管展示，会重构该代码
-            UserInfoDTO userInfoDTO = new UserInfoDTO("1810518709471555585", "pdd45305558318", 1858697279754010624L);
-            UserContext.setUser(userInfoDTO);
-            return true;
-        }
-
-        @Override
-        public void afterCompletion(@Nullable HttpServletRequest request, @Nullable HttpServletResponse response, @Nullable Object handler, Exception exception) throws Exception {
-            UserContext.removeUser();
-        }
+    public static int extractSecondField(int combined) {
+        return combined & ((1 << SECOND_FIELD_BITS) - 1);
     }
 }

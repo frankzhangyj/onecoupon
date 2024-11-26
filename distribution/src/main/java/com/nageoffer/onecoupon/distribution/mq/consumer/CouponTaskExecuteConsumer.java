@@ -41,11 +41,13 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.nageoffer.onecoupon.distribution.common.enums.CouponTaskStatusEnum;
 import com.nageoffer.onecoupon.distribution.common.enums.CouponTemplateStatusEnum;
 import com.nageoffer.onecoupon.distribution.dao.entity.CouponTemplateDO;
+import com.nageoffer.onecoupon.distribution.dao.mapper.CouponTaskFailMapper;
 import com.nageoffer.onecoupon.distribution.dao.mapper.CouponTaskMapper;
 import com.nageoffer.onecoupon.distribution.dao.mapper.CouponTemplateMapper;
 import com.nageoffer.onecoupon.distribution.dao.mapper.UserCouponMapper;
 import com.nageoffer.onecoupon.distribution.mq.base.MessageWrapper;
 import com.nageoffer.onecoupon.distribution.mq.event.CouponTaskExecuteEvent;
+import com.nageoffer.onecoupon.distribution.mq.producer.CouponExecuteDistributionProducer;
 import com.nageoffer.onecoupon.distribution.service.handler.excel.CouponTaskExcelObject;
 import com.nageoffer.onecoupon.distribution.service.handler.excel.ReadExcelDistributionListener;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +59,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * 优惠券推送定时执行-真实执行消费者
+ * 难点：通过这个消费者主要解析excel 后面通过消息队列发送到消息发送消费者处理分发任务(分发消费者优化 将解析excel和分发模块分离)
+ * 如果解析和分发放一起导致消息消费时间过长，可能会导致意外问题
  */
 @Component
 @RequiredArgsConstructor
@@ -71,6 +75,9 @@ public class CouponTaskExecuteConsumer implements RocketMQListener<MessageWrappe
     private final CouponTemplateMapper couponTemplateMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final UserCouponMapper userCouponMapper;
+    private final CouponTaskFailMapper couponTaskFailMapper;
+
+    private final CouponExecuteDistributionProducer couponExecuteDistributionProducer;
 
     @Override
     public void onMessage(MessageWrapper<CouponTaskExecuteEvent> messageWrapper) {
@@ -98,12 +105,15 @@ public class CouponTaskExecuteConsumer implements RocketMQListener<MessageWrappe
 
         // 正式开始执行优惠券推送任务 EasyExcel 并非运行在 Spring 环境中，因此引入 Spring Bean 会稍显麻烦
         var readExcelDistributionListener = new ReadExcelDistributionListener(
-                couponTaskId,
+                couponTaskDO,
                 couponTemplateDO,
+                couponTaskFailMapper,
                 stringRedisTemplate,
-                couponTemplateMapper,
+                couponExecuteDistributionProducer,
                 userCouponMapper,
-                couponTaskMapper
+                couponTaskMapper,
+                couponTemplateMapper,
+                couponTaskId
         );
         EasyExcel.read(couponTaskDO.getFileAddress(), CouponTaskExcelObject.class, readExcelDistributionListener).sheet().doRead();
     }
