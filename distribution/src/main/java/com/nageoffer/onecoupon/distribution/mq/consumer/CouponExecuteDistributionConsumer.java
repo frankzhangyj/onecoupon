@@ -41,6 +41,9 @@ import cn.hutool.core.lang.Singleton;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.ExcelWriter;
+import com.alibaba.excel.write.metadata.WriteSheet;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -62,6 +65,7 @@ import com.nageoffer.onecoupon.distribution.dao.mapper.CouponTemplateMapper;
 import com.nageoffer.onecoupon.distribution.dao.mapper.UserCouponMapper;
 import com.nageoffer.onecoupon.distribution.mq.base.MessageWrapper;
 import com.nageoffer.onecoupon.distribution.mq.event.CouponTemplateDistributionEvent;
+import com.nageoffer.onecoupon.distribution.service.handler.excel.UserCouponTaskFailExcelObject;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -78,6 +82,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.Paths;
 import java.util.*;
 // 存在问题可以继续优化:
 // 如果 batchSaveUserCouponList 执行时数据库宕机，那么就会面临事务回滚问题，意味着我们需要将从 Redis 中获取的领券用户记录再保存到 Redis。
@@ -109,6 +114,7 @@ public class CouponExecuteDistributionConsumer implements RocketMQListener<Messa
 
     private final static int BATCH_USER_COUPON_SIZE = 500;
     private static final String BATCH_SAVE_USER_COUPON_LUA_PATH = "lua/batch_user_coupon_list.lua";
+    private final String excelPath = Paths.get("").toAbsolutePath() + "/tmp";
 
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -151,6 +157,47 @@ public class CouponExecuteDistributionConsumer implements RocketMQListener<Messa
 
                 // 添加到 t_coupon_task_fail 并标记错误原因
                 couponTaskFailMapper.insert(couponTaskFailDOList);
+            }
+
+            long initId = 0;
+            boolean isFirstIteration = true;  // 用于标识是否为第一次迭代
+            String failFileAddress = excelPath + "/用户分发记录失败Excel-" + event.getCouponTaskBatchId() + ".xlsx";
+
+            // 这里应该上传云 OSS 或者 MinIO 等存储平台，但是增加部署成功并且不太好往简历写就仅写入本地
+            // 只有在第一次调用 excelWriter.write(xx, xx) 方法才会创建 Excel 文件 不用担心创建空记录 Excel 文件
+            try (ExcelWriter excelWriter = EasyExcel.write(failFileAddress, UserCouponTaskFailExcelObject.class).build()) {
+                WriteSheet writeSheet = EasyExcel.writerSheet("用户分发失败Sheet").build();
+                while (true) {
+                    // 优化 利用书签记录(直接根据有序的id进行向后或者向前查找)解决深分页问题
+                    List<CouponTaskFailDO> couponTaskFailDOList = listUserCouponTaskFail(event.getCouponTaskBatchId(), initId);
+                    if (CollUtil.isEmpty(couponTaskFailDOList)) {
+                        // 如果是第一次迭代且集合为空，则设置 failFileAddress 为 null
+                        if (isFirstIteration) {
+                            failFileAddress = null;
+                        }
+                        break;
+                    }
+
+                    // 标记第一次迭代已经完成
+                    isFirstIteration = false;
+
+                    // 将失败行数和失败原因写入 Excel 文件
+                    List<UserCouponTaskFailExcelObject> excelDataList = couponTaskFailDOList.stream()
+                            .map(each -> JSONObject.parseObject(each.getJsonObject(), UserCouponTaskFailExcelObject.class))
+                            .toList();
+                    excelWriter.write(excelDataList, writeSheet);
+
+                    // 查询出来的数据如果小于 BATCH_USER_COUPON_SIZE 意味着后面将不再有数据，返回即可
+                    if (couponTaskFailDOList.size() < BATCH_USER_COUPON_SIZE) {
+                        break;
+                    }
+
+                    // 更新 initId 为当前列表中最大 ID
+                    initId = couponTaskFailDOList.stream()
+                            .mapToLong(CouponTaskFailDO::getId)
+                            .max()
+                            .orElse(initId);
+                }
             }
 
             // 确保所有用户都已经接到优惠券后，设置优惠券推送任务完成时间
@@ -332,5 +379,20 @@ public class CouponExecuteDistributionConsumer implements RocketMQListener<Messa
                 .eq(UserCouponDO::getUserId, userId)
                 .eq(UserCouponDO::getCouponTemplateId, couponTemplateId);
         return userCouponMapper.selectOne(queryWrapper) != null;
+    }
+
+    /**
+     * 查询用户分发任务失败记录
+     *
+     * @param batchId 分发任务批次 ID
+     * @param maxId   上次读取最大 ID
+     * @return 用户分发任务失败记录集合
+     */
+    private List<CouponTaskFailDO> listUserCouponTaskFail(Long batchId, Long maxId) {
+        LambdaQueryWrapper<CouponTaskFailDO> queryWrapper = Wrappers.lambdaQuery(CouponTaskFailDO.class)
+                .eq(CouponTaskFailDO::getBatchId, batchId)
+                .gt(CouponTaskFailDO::getId, maxId)
+                .last("LIMIT " + BATCH_USER_COUPON_SIZE);
+        return couponTaskFailMapper.selectList(queryWrapper);
     }
 }
