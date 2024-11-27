@@ -107,7 +107,7 @@ public class CouponExecuteDistributionConsumer implements RocketMQListener<Messa
     @Autowired
     private CouponExecuteDistributionConsumer couponExecuteDistributionConsumer;
 
-    private final static int BATCH_USER_COUPON_SIZE = 5000;
+    private final static int BATCH_USER_COUPON_SIZE = 500;
     private static final String BATCH_SAVE_USER_COUPON_LUA_PATH = "lua/batch_user_coupon_list.lua";
 
     @Transactional(rollbackFor = Exception.class)

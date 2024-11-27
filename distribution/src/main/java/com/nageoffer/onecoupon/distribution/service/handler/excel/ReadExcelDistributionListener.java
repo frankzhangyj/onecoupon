@@ -34,21 +34,17 @@
 
 package com.nageoffer.onecoupon.distribution.service.handler.excel;
 
-import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.date.DateTime;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Singleton;
 import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
+import com.alibaba.excel.util.ListUtils;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.fastjson2.JSON;
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
 import com.nageoffer.onecoupon.distribution.common.constant.DistributionRedisConstant;
 import com.nageoffer.onecoupon.distribution.common.constant.EngineRedisConstant;
@@ -67,19 +63,20 @@ import com.nageoffer.onecoupon.distribution.mq.event.CouponTemplateDistributionE
 import com.nageoffer.onecoupon.distribution.mq.producer.CouponExecuteDistributionProducer;
 import com.nageoffer.onecoupon.distribution.toolkit.StockDecrementReturnCombinedUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.executor.BatchExecutorException;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scripting.support.ResourceScriptSource;
 
-import java.util.Date;
-import java.util.Map;
+import java.util.*;
 
 /**
  * 优惠券任务读取 Excel 分发监听器 这个主要用来Excel模板解析和前置校验
  */
 @RequiredArgsConstructor
+@Slf4j
 public class ReadExcelDistributionListener extends AnalysisEventListener<CouponTaskExcelObject> {
 
     // 解析excel和分发模块分离使用的属性
@@ -99,9 +96,9 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<CouponT
     // 用来记录当前已经读取过的行数
     private int rowCount = 1;
     private final static String STOCK_DECREMENT_AND_BATCH_SAVE_USER_RECORD_LUA_PATH = "lua/stock_decrement_and_batch_save_user_record.lua";
-    private final static int BATCH_USER_COUPON_SIZE = 5000;
+    private final static int BATCH_USER_COUPON_SIZE = 500;
 
-
+    // TODO 目前还是存在问题 将excel的一行数据进行处理时花费时间过长 目前分析应该是redis处理时间过长 后续可以进一步分析问题
     /**
      * 难点 优化后的解析excel模块 每次解析excel都进行批处理 并且设置一个当前进度rowCount防止重头开始 并通过位运算提升了返回数据的性能 和分发模块分离(防止当个任务处理时长过长失效) 加速mq执行
      * 库存不足或者插入出现错误 会记录当前处理到的行数progress 之后所有的excel行都会加入到couponTaskFail表中(开头progress每次判断都是小于rowCount)
@@ -113,7 +110,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<CouponT
     @Override
     public void invoke(CouponTaskExcelObject data, AnalysisContext context) {
         Long couponTaskId = couponTaskDO.getId();
-
+        log.info("开始：{}", System.currentTimeMillis());
         // 获取当前进度，判断是否已经执行过。如果已执行，则跳过即可，防止执行到一半应用宕机
         String templateTaskExecuteProgressKey = String.format(DistributionRedisConstant.TEMPLATE_TASK_EXECUTE_PROGRESS_KEY, couponTaskId);
         String progress = stringRedisTemplate.opsForValue().get(templateTaskExecuteProgressKey);
@@ -168,9 +165,10 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<CouponT
             // 同步当前 Excel 执行进度到缓存
             stringRedisTemplate.opsForValue().set(templateTaskExecuteProgressKey, String.valueOf(rowCount));
             ++rowCount;
+            log.info("完成：{}", System.currentTimeMillis());
             return;
         }
-
+        ListUtils.newArrayListWithExpectedSize(BATCH_USER_COUPON_SIZE);
         // 发送消息队列执行用户优惠券模板分发逻辑
         CouponTemplateDistributionEvent couponTemplateDistributionEvent = CouponTemplateDistributionEvent.builder()
                 .couponTaskId(couponTaskId)
@@ -182,7 +180,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<CouponT
                 .distributionEndFlag(Boolean.FALSE)
                 .build();
         couponExecuteDistributionProducer.sendMessage(couponTemplateDistributionEvent);
-
+        log.info("彻底结束：{}", System.currentTimeMillis());
         // 同步当前执行进度到缓存
         stringRedisTemplate.opsForValue().set(templateTaskExecuteProgressKey, String.valueOf(rowCount));
         ++rowCount;
@@ -201,7 +199,6 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<CouponT
                 .build();
         couponExecuteDistributionProducer.sendMessage(couponTemplateExecuteEvent);
     }
-
 
     //  解析excel和分发在一起 效率太低 大约 5000 条 Excel 分发记录需要约 1 分钟。
     // 难点 分发版本一 保证一人一单 这里用用户id+券id+领取次数作为唯一索引 保证一个用户只推送优惠券一次(通过easyExcel逐行读取将数据放到data中 然后更新缓存和数据库)
