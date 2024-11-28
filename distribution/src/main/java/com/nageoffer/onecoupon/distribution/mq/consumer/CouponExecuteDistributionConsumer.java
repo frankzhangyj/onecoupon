@@ -176,6 +176,7 @@ public class CouponExecuteDistributionConsumer implements RocketMQListener<Messa
                             failFileAddress = null;
                         }
                         break;
+
                     }
 
                     // 标记第一次迭代已经完成

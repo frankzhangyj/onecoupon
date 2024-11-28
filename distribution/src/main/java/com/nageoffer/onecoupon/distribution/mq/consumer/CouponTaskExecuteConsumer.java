@@ -50,6 +50,7 @@ import com.nageoffer.onecoupon.distribution.mq.event.CouponTaskExecuteEvent;
 import com.nageoffer.onecoupon.distribution.mq.producer.CouponExecuteDistributionProducer;
 import com.nageoffer.onecoupon.distribution.service.handler.excel.CouponTaskExcelObject;
 import com.nageoffer.onecoupon.distribution.service.handler.excel.ReadExcelDistributionListener;
+import com.nageoffer.onecoupon.framework.idempotent.NoMQDuplicateConsume;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -80,6 +81,12 @@ public class CouponTaskExecuteConsumer implements RocketMQListener<MessageWrappe
     private final CouponExecuteDistributionProducer couponExecuteDistributionProducer;
 
     @Override
+    // 避免重复消费 这里2分钟是经验值 一般消息是能在2分钟内消费完的
+    @NoMQDuplicateConsume(
+            keyPrefix = "coupon_task_execute:idempotent:",
+            key = "#messageWrapper.message.couponTaskId",
+            keyTimeout = 120
+    )
     public void onMessage(MessageWrapper<CouponTaskExecuteEvent> messageWrapper) {
         // 开头打印日志，平常可 Debug 看任务参数，线上可报平安（比如消息是否消费，重新投递时获取参数等）
         log.info("[消费者] 优惠券推送任务正式执行 - 执行消费逻辑，消息体：{}", JSON.toJSONString(messageWrapper));

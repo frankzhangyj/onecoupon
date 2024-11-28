@@ -32,57 +32,39 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.config;
+package com.nageoffer.onecoupon.framework.idempotent;
 
-import com.baomidou.mybatisplus.annotation.DbType;
-import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
-import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
-import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
-import org.apache.ibatis.reflection.MetaObject;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
-import java.util.Date;
+import java.util.Objects;
 
 /**
- * 数据库持久层配置类｜配置 MyBatis-Plus 相关分页插件等
+ * 幂等 MQ 消费状态枚举
  */
-@Configuration
-public class DataBaseConfiguration {
+@RequiredArgsConstructor
+public enum IdempotentMQConsumeStatusEnum {
 
     /**
-     * MyBatis-Plus MySQL 分页插件
+     * 消费中
      */
-    @Bean
-    public MybatisPlusInterceptor mybatisPlusInterceptor() {
-        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
-        return interceptor;
-    }
+    CONSUMING("0"),
 
     /**
-     * MyBatis-Plus 源数据自动填充类
+     * 已消费
      */
-    @Bean
-    public MyMetaObjectHandler myMetaObjectHandler() {
-        return new MyMetaObjectHandler();
-    }
+    CONSUMED("1");
+
+    @Getter
+    private final String code;
 
     /**
-     * MyBatis-Plus 源数据自动填充类
+     * 如果消费状态等于消费中，返回失败
+     *
+     * @param consumeStatus 消费状态
+     * @return 是否消费失败
      */
-    static class MyMetaObjectHandler implements MetaObjectHandler {
-
-        @Override
-        public void insertFill(MetaObject metaObject) {
-            strictInsertFill(metaObject, "createTime", Date::new, Date.class);
-            strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
-            strictInsertFill(metaObject, "delFlag", () -> 0, Integer.class);
-        }
-
-        @Override
-        public void updateFill(MetaObject metaObject) {
-            strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
-        }
+    public static boolean isError(String consumeStatus) {
+        return Objects.equals(CONSUMING.code, consumeStatus);
     }
 }

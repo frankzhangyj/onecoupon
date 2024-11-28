@@ -32,57 +32,32 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.config;
+package com.nageoffer.onecoupon.framework.idempotent;
 
-import com.baomidou.mybatisplus.annotation.DbType;
-import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
-import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
-import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
-import org.apache.ibatis.reflection.MetaObject;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
-import java.util.Date;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * 数据库持久层配置类｜配置 MyBatis-Plus 相关分页插件等
+ * 幂等注解，防止消息队列消费者重复消费消息
  */
-@Configuration
-public class DataBaseConfiguration {
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface NoMQDuplicateConsume {
 
     /**
-     * MyBatis-Plus MySQL 分页插件
+     * 设置防重令牌 Key 前缀
      */
-    @Bean
-    public MybatisPlusInterceptor mybatisPlusInterceptor() {
-        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
-        return interceptor;
-    }
+    String keyPrefix() default "";
 
     /**
-     * MyBatis-Plus 源数据自动填充类
+     * 通过 SpEL 表达式生成的唯一 Key
      */
-    @Bean
-    public MyMetaObjectHandler myMetaObjectHandler() {
-        return new MyMetaObjectHandler();
-    }
+    String key();
 
     /**
-     * MyBatis-Plus 源数据自动填充类
+     * 设置防重令牌 Key 过期时间，单位秒，默认 1 小时
      */
-    static class MyMetaObjectHandler implements MetaObjectHandler {
-
-        @Override
-        public void insertFill(MetaObject metaObject) {
-            strictInsertFill(metaObject, "createTime", Date::new, Date.class);
-            strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
-            strictInsertFill(metaObject, "delFlag", () -> 0, Integer.class);
-        }
-
-        @Override
-        public void updateFill(MetaObject metaObject) {
-            strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
-        }
-    }
+    long keyTimeout() default 3600L;
 }
