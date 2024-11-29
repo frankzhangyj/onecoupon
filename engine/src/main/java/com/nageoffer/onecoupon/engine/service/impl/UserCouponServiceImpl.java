@@ -54,7 +54,9 @@ import com.nageoffer.onecoupon.engine.dto.req.CouponTemplateQueryReqDTO;
 import com.nageoffer.onecoupon.engine.dto.req.CouponTemplateRedeemReqDTO;
 import com.nageoffer.onecoupon.engine.dto.resp.CouponTemplateQueryRespDTO;
 import com.nageoffer.onecoupon.engine.mq.event.UserCouponDelayCloseEvent;
+import com.nageoffer.onecoupon.engine.mq.event.UserCouponRedeemEvent;
 import com.nageoffer.onecoupon.engine.mq.producer.UserCouponDelayCloseProducer;
+import com.nageoffer.onecoupon.engine.mq.producer.UserCouponRedeemProducer;
 import com.nageoffer.onecoupon.engine.service.CouponTemplateService;
 import com.nageoffer.onecoupon.engine.service.UserCouponService;
 import com.nageoffer.onecoupon.engine.toolkit.StockDecrementReturnCombinedUtil;
@@ -78,7 +80,30 @@ import java.util.Date;
  * 用户优惠券业务逻辑实现层
  * 总结 用户领券模块 首先对优惠券是否存在 是否超时 然后通过lua脚本判断库存是否充足，用户是否超领，并存储领取次数信息 然后使用编程式事务进行数据库修改 保存用户领券时间信息并设置过期时间
  * 优化 对于用户领券 在一个事务中操作了很多 Redis 和 RocketMQ导致事务时间延长以及接口响应速度变慢等问题。所以使用binlog监听mysql通过canal发送操作消息到Rocketmq 再由单独线程顺序处理
+ * 难点 Redis 极端场景 不论redis是RDB AOF都不可避免丢失数据 并且Redis 默认使用异步复制方式将主节点的数据传递给从节点也会出现没有同步到从节点
+ * 导致用户1领券redis返回成功并发送消息但持久化失败或者 Redis 主节点宕机，造成这个记录并没有真正意义上执行完成。用户2还能领券 但是处理消息因为是顺序处理 所以只有一个成功 用户2实际不能用券
  */
+/*
+ 难点 针对秒杀业务讨论：
+
+ 在商品流量较低的情况下，通常不会出现大量请求同时访问单个商品进行库存扣减。
+ 此时，可以使用 Redis 进行防护，并直接同步到 MySQL 进行库存扣减，以防止商品超卖。虽然在此场景中涉及多个商品的数据扣减，可能会出现锁竞争，但竞争程度通常不会很激烈。
+
+ 对于秒杀商品，通常会在短时间内出现大量请求同时访问单个商品进行库存扣减。
+ 为此，可以使用 Redis 进行防护，并直接将库存扣减同步到 MySQL，以防止商品超卖。由于秒杀商品的库存一般较少，因此造成的锁竞争相对可控。假设库存扣减采用串行方式，每次扣减耗时 5 毫秒，处理 100 个库存也仅需 500 毫秒。
+
+ 某些秒杀商品的库存较多，或同时进行多个热门商品的秒杀（如直播间商品）。
+ 在这种情况下，直接扣减数据库库存会给系统带来较大压力，导致接口响应延迟。为应对这种场景，我们设计了优惠券秒杀 v2 接口。
+ 虽然基于 Redis 扣减库存和消息队列异步处理的方案可能会引发前后不一致的问题，但它能显著提升性能。此外，Redis 的持久化和主从宕机的风险相对较小。
+ 即使发生宕机，对平台或商家来说，也不会造成直接的损失。
+
+如果 Redis 真的丢失了数据，类似于在 12306 购票或银行转账时，当你提交请求后并不会立即得到成功的反馈，而是会看到一个等待界面，然后在一段时间后再告知你结果。
+如果将这个模式应用到秒杀场景中，可以设想在 Redis 中成功扣减库存并投递消息到队列后，返回给用户一个“等待完成”的页面。只有在消息队列的消费者成功扣减数据库后，才会返回真正的成功通知。
+
+如果不想多发优惠券，那我们可以在用户使用优惠券时，发现数据库中没有这个记录，就将用户的优惠券缓存删除，来确保数据的准确性。
+当然这种可能会引起用户反感，具体可以和产品沟通这种方案怎么解决，设置不可用的标记，或者直接给用户补上都可以。
+ */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -92,12 +117,68 @@ public class UserCouponServiceImpl implements UserCouponService {
     private final StringRedisTemplate stringRedisTemplate;
     // 难点 通过编程式事务解决库存扣减事务回滚问题
     private final TransactionTemplate transactionTemplate;
+    private final UserCouponRedeemProducer userCouponRedeemProducer;
 
     @Value("${one-coupon.user-coupon-list.save-cache.type}")
     private String userCouponListSaveCacheType;
 
     private final static String STOCK_DECREMENT_AND_SAVE_USER_RECEIVE_LUA_PATH = "lua/stock_decrement_and_save_user_receive.lua";
 
+    // 难点 v2版本 使用消息队列进行异步解耦，主流程仅同步操作 Redis，后续的数据库耗时操作则交由消息队列消费者来执行，从而提升整体性能。但是存在前后不一致的问题
+    @Override
+    public void redeemUserCouponByMQ(CouponTemplateRedeemReqDTO requestParam) {
+        // 验证缓存是否存在，保障数据存在并且缓存中存在
+        CouponTemplateQueryRespDTO couponTemplate = couponTemplateService.findCouponTemplate(BeanUtil.toBean(requestParam, CouponTemplateQueryReqDTO.class));
+
+        // 验证领取的优惠券是否在活动有效时间
+        boolean isInTime = DateUtil.isIn(new Date(), couponTemplate.getValidStartTime(), couponTemplate.getValidEndTime());
+        if (!isInTime) {
+            // 一般来说优惠券领取时间不到的时候，前端不会放开调用请求，可以理解这是用户调用接口在“攻击”
+            throw new ClientException("不满足优惠券领取时间");
+        }
+
+        // 获取 LUA 脚本，并保存到 Hutool 的单例管理容器，下次直接获取不需要加载
+        DefaultRedisScript<Long> buildLuaScript = Singleton.get(STOCK_DECREMENT_AND_SAVE_USER_RECEIVE_LUA_PATH, () -> {
+            DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
+            redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource(STOCK_DECREMENT_AND_SAVE_USER_RECEIVE_LUA_PATH)));
+            redisScript.setResultType(Long.class);
+            return redisScript;
+        });
+
+        // 验证用户是否符合优惠券领取条件
+        JSONObject receiveRule = JSON.parseObject(couponTemplate.getReceiveRule());
+        String limitPerPerson = receiveRule.getString("limitPerPerson");
+
+        // 执行 LUA 脚本进行扣减库存以及增加 Redis 用户领券记录次数
+        String couponTemplateCacheKey = String.format(EngineRedisConstant.COUPON_TEMPLATE_KEY, requestParam.getCouponTemplateId());
+        String userCouponTemplateLimitCacheKey = String.format(EngineRedisConstant.USER_COUPON_TEMPLATE_LIMIT_KEY, UserContext.getUserId(), requestParam.getCouponTemplateId());
+        Long stockDecrementLuaResult = stringRedisTemplate.execute(
+                buildLuaScript,
+                ListUtil.of(couponTemplateCacheKey, userCouponTemplateLimitCacheKey),
+                String.valueOf(couponTemplate.getValidEndTime().getTime()), limitPerPerson
+        );
+
+        // 判断 LUA 脚本执行返回类，如果失败根据类型返回报错提示
+        long firstField = StockDecrementReturnCombinedUtil.extractFirstField(stockDecrementLuaResult);
+        if (RedisStockDecrementErrorEnum.isFail(firstField)) {
+            throw new ServiceException(RedisStockDecrementErrorEnum.fromType(firstField));
+        }
+
+        UserCouponRedeemEvent userCouponRedeemEvent = UserCouponRedeemEvent.builder()
+                .requestParam(requestParam)
+                .receiveCount((int) StockDecrementReturnCombinedUtil.extractSecondField(stockDecrementLuaResult))
+                .couponTemplate(couponTemplate)
+                .userId(UserContext.getUserId())
+                .build();
+        SendResult sendResult = userCouponRedeemProducer.sendMessage(userCouponRedeemEvent);
+        // 发送消息失败解决方案简单且高效的逻辑之一：打印日志并报警，通过日志搜集并重新投递
+        if (ObjectUtil.notEqual(sendResult.getSendStatus().name(), "SEND_OK")) {
+            log.warn("发送优惠券兑换消息失败，消息参数：{}", JSON.toJSONString(userCouponRedeemEvent));
+        }
+    }
+
+
+    // 难点 v1版本秒杀可以利用数据库和缓存可以保证数据一致性 但是性能欠缺 因为主流程的操作是同步执行的，导致响应时间变长，吞吐量下降。
     @Override
     public void redeemUserCoupon(CouponTemplateRedeemReqDTO requestParam) {
         // 验证缓存是否存在，保障数据存在并且缓存中存在

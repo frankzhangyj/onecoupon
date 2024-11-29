@@ -32,27 +32,68 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.config;
+package com.nageoffer.onecoupon.distribution.common.enums;
 
-import org.redisson.api.RBloomFilter;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 /**
- * 布隆过滤器配置类
+ * Redis 扣减优惠券库存错误枚举
+ * <p>
+ * 作者：马丁
+ * 加项目群：早加入就是优势！500人内部沟通群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+ * 开发时间：2024-07-17
  */
-@Configuration
-public class RBloomFilterConfiguration {
+@RequiredArgsConstructor
+public enum RedisStockDecrementErrorEnum {
 
     /**
-     * 优惠券查询缓存穿透布隆过滤器
+     * 成功
      */
-    @Bean
-    public RBloomFilter<String> couponTemplateQueryBloomFilter(RedissonClient redissonClient, @Value("${framework.cache.redis.prefix:}") String cachePrefix) {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(cachePrefix + "couponTemplateQueryBloomFilter");
-        bloomFilter.tryInit(640L, 0.001);
-        return bloomFilter;
+    SUCCESS(0, "成功"),
+
+    /**
+     * 库存不足
+     */
+    STOCK_INSUFFICIENT(1, "优惠券已被领取完啦"),
+
+    /**
+     * 用户已经达到领取上限
+     */
+    LIMIT_REACHED(2, "用户已经达到领取上限");
+
+    @Getter
+    private final long code;
+    @Getter
+    private final String message;
+
+    /**
+     * 根据 code 找到对应的枚举实例判断是否成功标识
+     *
+     * @param code 要查找的编码
+     * @return 是否成功标识
+     */
+    public static boolean isFail(long code) {
+        for (RedisStockDecrementErrorEnum status : values()) {
+            if (status.code == code) {
+                return status != SUCCESS;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 根据 type 找到对应的枚举实例
+     *
+     * @param code 要查找的编码
+     * @return 对应的枚举实例
+     */
+    public static String fromType(long code) {
+        for (RedisStockDecrementErrorEnum method : RedisStockDecrementErrorEnum.values()) {
+            if (method.getCode() == code) {
+                return method.getMessage();
+            }
+        }
+        throw new IllegalArgumentException("Invalid code: " + code);
     }
 }

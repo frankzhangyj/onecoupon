@@ -32,27 +32,69 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.config;
+package com.nageoffer.onecoupon.distribution.common.context;
 
-import org.redisson.api.RBloomFilter;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import com.alibaba.ttl.TransmittableThreadLocal;
+
+import java.util.Optional;
 
 /**
- * 布隆过滤器配置类
+ * 用户登录信息存储上下文
+ * <p>
+ * 作者：马丁
+ * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+ * 开发时间：2024-07-17
  */
-@Configuration
-public class RBloomFilterConfiguration {
+public final class UserContext {
 
     /**
-     * 优惠券查询缓存穿透布隆过滤器
+     * <a href="https://github.com/alibaba/transmittable-thread-local" />
      */
-    @Bean
-    public RBloomFilter<String> couponTemplateQueryBloomFilter(RedissonClient redissonClient, @Value("${framework.cache.redis.prefix:}") String cachePrefix) {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(cachePrefix + "couponTemplateQueryBloomFilter");
-        bloomFilter.tryInit(640L, 0.001);
-        return bloomFilter;
+    private static final ThreadLocal<UserInfoDTO> USER_THREAD_LOCAL = new TransmittableThreadLocal<>();
+
+    /**
+     * 设置用户至上下文
+     *
+     * @param user 用户详情信息
+     */
+    public static void setUser(UserInfoDTO user) {
+        USER_THREAD_LOCAL.set(user);
+    }
+
+    /**
+     * 获取上下文中用户 ID
+     *
+     * @return 用户 ID
+     */
+    public static String getUserId() {
+        UserInfoDTO userInfoDTO = USER_THREAD_LOCAL.get();
+        return Optional.ofNullable(userInfoDTO).map(UserInfoDTO::getUserId).orElse(null);
+    }
+
+    /**
+     * 获取上下文中用户名称
+     *
+     * @return 用户名称
+     */
+    public static String getUsername() {
+        UserInfoDTO userInfoDTO = USER_THREAD_LOCAL.get();
+        return Optional.ofNullable(userInfoDTO).map(UserInfoDTO::getUsername).orElse(null);
+    }
+
+    /**
+     * 获取上下文中用户店铺编号
+     *
+     * @return 用户店铺编号
+     */
+    public static Long getShopNumber() {
+        UserInfoDTO userInfoDTO = USER_THREAD_LOCAL.get();
+        return Optional.ofNullable(userInfoDTO).map(UserInfoDTO::getShopNumber).orElse(null);
+    }
+
+    /**
+     * 清理用户上下文
+     */
+    public static void removeUser() {
+        USER_THREAD_LOCAL.remove();
     }
 }

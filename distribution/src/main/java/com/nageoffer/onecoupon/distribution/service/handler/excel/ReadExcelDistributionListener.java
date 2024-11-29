@@ -45,12 +45,15 @@ import com.alibaba.excel.event.AnalysisEventListener;
 import com.alibaba.excel.util.ListUtils;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
 import com.nageoffer.onecoupon.distribution.common.constant.DistributionRedisConstant;
 import com.nageoffer.onecoupon.distribution.common.constant.EngineRedisConstant;
+import com.nageoffer.onecoupon.distribution.common.context.UserContext;
 import com.nageoffer.onecoupon.distribution.common.enums.CouponSourceEnum;
 import com.nageoffer.onecoupon.distribution.common.enums.CouponStatusEnum;
 import com.nageoffer.onecoupon.distribution.common.enums.CouponTaskStatusEnum;
+import com.nageoffer.onecoupon.distribution.common.enums.RedisStockDecrementErrorEnum;
 import com.nageoffer.onecoupon.distribution.dao.entity.CouponTaskDO;
 import com.nageoffer.onecoupon.distribution.dao.entity.CouponTaskFailDO;
 import com.nageoffer.onecoupon.distribution.dao.entity.CouponTemplateDO;
@@ -62,6 +65,7 @@ import com.nageoffer.onecoupon.distribution.dao.mapper.UserCouponMapper;
 import com.nageoffer.onecoupon.distribution.mq.event.CouponTemplateDistributionEvent;
 import com.nageoffer.onecoupon.distribution.mq.producer.CouponExecuteDistributionProducer;
 import com.nageoffer.onecoupon.distribution.toolkit.StockDecrementReturnCombinedUtil;
+import com.nageoffer.onecoupon.framework.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.executor.BatchExecutorException;
@@ -127,6 +131,11 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<CouponT
             return redisScript;
         });
 
+        // 限制用户领券次数
+        JSONObject receiveRule = JSON.parseObject(couponTemplateDO.getReceiveRule());
+        String limitPerPerson = receiveRule.getString("limitPerPerson");
+        String userCouponTemplateLimitCacheKey = String.format(EngineRedisConstant.USER_COUPON_TEMPLATE_LIMIT_KEY, UserContext.getUserId(), couponTemplateDO.getId());
+
         // 执行 LUA 脚本进行扣减库存以及增加 Redis 用户领券记录
         String couponTemplateKey = String.format(EngineRedisConstant.COUPON_TEMPLATE_KEY, couponTemplateDO.getId());
         String batchUserSetKey = String.format(DistributionRedisConstant.TEMPLATE_TASK_EXECUTE_BATCH_USER_KEY, couponTaskId);
@@ -134,12 +143,14 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<CouponT
                 .put("userId", data.getUserId())
                 .put("rowNum", rowCount + 1)
                 .build();
-        Long combinedFiled = stringRedisTemplate.execute(buildLuaScript, ListUtil.of(couponTemplateKey, batchUserSetKey), com.alibaba.fastjson.JSON.toJSONString(userRowNumMap));
+        Long combinedFiled = stringRedisTemplate.execute(buildLuaScript, ListUtil.of(couponTemplateKey, batchUserSetKey), userCouponTemplateLimitCacheKey,
+                com.alibaba.fastjson.JSON.toJSONString(userRowNumMap), limitPerPerson);
 
         // firstField 为 false 说明优惠券已经没有库存了
         // 难点1 库存不足或者插入出现错误 会记录下当前处理到的行数 之后所有的excel行都会加入到couponTaskFail表中(开头progress每次判断都是小于rowCount)
-        boolean firstField = StockDecrementReturnCombinedUtil.extractFirstField(combinedFiled);
-        if (!firstField) {
+        long firstField = StockDecrementReturnCombinedUtil.extractFirstField(combinedFiled);
+        if (RedisStockDecrementErrorEnum.isFail(firstField)) {
+            RedisStockDecrementErrorEnum.fromType(firstField);
             // 同步当前执行进度到缓存
             stringRedisTemplate.opsForValue().set(templateTaskExecuteProgressKey, String.valueOf(rowCount));
             ++rowCount;
@@ -147,13 +158,14 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<CouponT
             // 添加到 t_coupon_task_fail 并标记错误原因，方便后续查看未成功发送的原因和记录
             Map<Object, Object> objectMap = MapUtil.builder()
                     .put("rowNum", rowCount + 1)
-                    .put("cause", "优惠券模板无库存")
+                    .put("cause", RedisStockDecrementErrorEnum.fromType(firstField))
                     .build();
             CouponTaskFailDO couponTaskFailDO = CouponTaskFailDO.builder()
                     .batchId(couponTaskDO.getBatchId())
                     .jsonObject(com.alibaba.fastjson.JSON.toJSONString(objectMap, SerializerFeature.WriteMapNullValue))
                     .build();
             couponTaskFailMapper.insert(couponTaskFailDO);
+
             return;
         }
 
