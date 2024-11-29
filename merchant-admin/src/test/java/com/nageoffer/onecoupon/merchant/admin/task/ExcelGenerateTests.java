@@ -59,7 +59,7 @@ public final class ExcelGenerateTests {
     /**
      * 写入优惠券推送示例 Excel 的数据，自行控制即可
      */
-    private final int writeNum = 5001;
+    private final int writeNum = 25;
     private final Faker faker = new Faker(Locale.CHINA);
     // springboot模块中的各种文件的当前工作目录都是模块目录
     private final String excelPath = Paths.get("").toAbsolutePath().getParent() + "/tmp";

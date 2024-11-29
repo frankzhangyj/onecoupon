@@ -96,7 +96,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<CouponT
     // 用来记录当前已经读取过的行数
     private int rowCount = 1;
     private final static String STOCK_DECREMENT_AND_BATCH_SAVE_USER_RECORD_LUA_PATH = "lua/stock_decrement_and_batch_save_user_record.lua";
-    private final static int BATCH_USER_COUPON_SIZE = 500;
+    private final static int BATCH_USER_COUPON_SIZE = 10;
 
     // TODO 目前还是存在问题 将excel的一行数据进行处理时花费时间过长 目前分析应该是redis处理时间过长 后续可以进一步分析问题
     /**

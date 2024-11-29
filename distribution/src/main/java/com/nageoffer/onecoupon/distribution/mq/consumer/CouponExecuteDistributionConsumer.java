@@ -112,7 +112,7 @@ public class CouponExecuteDistributionConsumer implements RocketMQListener<Messa
     @Autowired
     private CouponExecuteDistributionConsumer couponExecuteDistributionConsumer;
 
-    private final static int BATCH_USER_COUPON_SIZE = 500;
+    private final static int BATCH_USER_COUPON_SIZE = 10;
     private static final String BATCH_SAVE_USER_COUPON_LUA_PATH = "lua/batch_user_coupon_list.lua";
     private final String excelPath = Paths.get("").toAbsolutePath() + "/tmp";
 

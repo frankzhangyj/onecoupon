@@ -32,31 +32,33 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.config;
+package com.nageoffer.onecoupon.engine.controller;
 
-import org.redisson.api.RBloomFilter;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import com.nageoffer.onecoupon.engine.dto.req.CouponTemplateRedeemReqDTO;
+import com.nageoffer.onecoupon.engine.service.UserCouponService;
+import com.nageoffer.onecoupon.framework.result.Result;
+import com.nageoffer.onecoupon.framework.web.Results;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 布隆过滤器配置类
+ * 用户优惠券控制层
  */
-@Configuration
-public class RBloomFilterConfiguration {
+@RestController
+@RequiredArgsConstructor
+@Tag(name = "用户优惠券管理")
+public class UserCouponController {
 
-    /**
-     * 难点 布隆过滤器的容量就取决于业务的数量 布隆过滤器大小不能超过 476MB 较低的误判率意味着需要更大的位数组和更多的哈希函数
-     * 一个亿的元素，如果千分之一的误判率，那么实际容量大概在 170M 左右。
-     * 另外在对布隆过滤器进行初始化的时候，会一次性申请对应的内存，这个需要额外注意下，避免初始化超大容量布隆过滤器时内存不足问题。
-     * 如果数据量300亿 可以设置多个布隆过滤器分片 根据模板 ID 进行分片，确定要操作的布隆过滤器，从而在该分片上进行操作。
-     * 优惠券查询缓存穿透布隆过滤器
-     */
-    @Bean
-    public RBloomFilter<String> couponTemplateQueryBloomFilter(RedissonClient redissonClient, @Value("${framework.cache.redis.prefix:}") String cachePrefix) {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(cachePrefix + "couponTemplateQueryBloomFilter");
-        bloomFilter.tryInit(640L, 0.001);
-        return bloomFilter;
+    private final UserCouponService userCouponService;
+
+    @Operation(summary = "兑换优惠券模板", description = "存在较高流量场景，可类比“秒杀”业务")
+    @PostMapping("/api/engine/user-coupon/redeem")
+    public Result<Void> redeemUserCoupon(@RequestBody CouponTemplateRedeemReqDTO requestParam) {
+        userCouponService.redeemUserCoupon(requestParam);
+        return Results.success();
     }
 }

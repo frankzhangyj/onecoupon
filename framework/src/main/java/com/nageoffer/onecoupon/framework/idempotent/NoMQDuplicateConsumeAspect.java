@@ -76,7 +76,8 @@ public final class NoMQDuplicateConsumeAspect {
     public Object noMQRepeatConsume(ProceedingJoinPoint joinPoint) throws Throwable {
         NoMQDuplicateConsume noMQDuplicateConsume = getNoMQDuplicateConsumeAnnotation(joinPoint);
         // 得到全局唯一id
-        // TODO 多个消息taskId相同
+        // TODO 多个消息taskId相同 解决
+        // 因为判断是否重复消费应该是在excel解析之前执行，aop判断之后再进行批量处理分发任务，所以同一个任务批量处理不会出现上面情况
         String uniqueKey = noMQDuplicateConsume.keyPrefix() + SpELUtil.parseKey(noMQDuplicateConsume.key(), ((MethodSignature) joinPoint.getSignature()).getMethod(), joinPoint.getArgs());
         // 查找key 并且是正在消费中的值 当key不存在 则插入消费标志并设置过期时间 返回nil key存在 返回之前的值
         String absentAndGet = stringRedisTemplate.execute(

@@ -32,31 +32,27 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.config;
+package com.nageoffer.onecoupon.framework.config;
 
-import org.redisson.api.RBloomFilter;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 布隆过滤器配置类
+ * 分布式 Redis 缓存配置属性
  */
-@Configuration
-public class RBloomFilterConfiguration {
+@Data
+@ConfigurationProperties(prefix = RedisDistributedProperties.PREFIX)
+public class RedisDistributedProperties {
+
+    public static final String PREFIX = "framework.cache.redis";
 
     /**
-     * 难点 布隆过滤器的容量就取决于业务的数量 布隆过滤器大小不能超过 476MB 较低的误判率意味着需要更大的位数组和更多的哈希函数
-     * 一个亿的元素，如果千分之一的误判率，那么实际容量大概在 170M 左右。
-     * 另外在对布隆过滤器进行初始化的时候，会一次性申请对应的内存，这个需要额外注意下，避免初始化超大容量布隆过滤器时内存不足问题。
-     * 如果数据量300亿 可以设置多个布隆过滤器分片 根据模板 ID 进行分片，确定要操作的布隆过滤器，从而在该分片上进行操作。
-     * 优惠券查询缓存穿透布隆过滤器
+     * Key 前缀 framework.cache.redis.prefix 自动配置
      */
-    @Bean
-    public RBloomFilter<String> couponTemplateQueryBloomFilter(RedissonClient redissonClient, @Value("${framework.cache.redis.prefix:}") String cachePrefix) {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(cachePrefix + "couponTemplateQueryBloomFilter");
-        bloomFilter.tryInit(640L, 0.001);
-        return bloomFilter;
-    }
+    private String prefix;
+
+    /**
+     * Key 前缀字符集
+     */
+    private String prefixCharset = "UTF-8";
 }
