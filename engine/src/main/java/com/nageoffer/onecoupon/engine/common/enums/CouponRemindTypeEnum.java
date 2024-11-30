@@ -32,44 +32,47 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.common.constant;
+package com.nageoffer.onecoupon.engine.common.enums;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 /**
- * 分布式 Redis 缓存引擎层常量类
- * <p>
- * 作者：马丁
- * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-14
+ * 预约提醒方式枚举类，值必须是0，1，2，3......
  */
-public final class EngineRedisConstant {
+@RequiredArgsConstructor
+public enum CouponRemindTypeEnum {
 
     /**
-     * 优惠券模板缓存 Key
+     * App 通知
      */
-    public static final String COUPON_TEMPLATE_KEY = "one-coupon_engine:template:%s";
+    APP(0, "App通知"),
 
     /**
-     * 优惠券模板缓存分布式锁 Key
+     * 邮件提醒
      */
-    public static final String LOCK_COUPON_TEMPLATE_KEY = "one-coupon_engine:lock:template:%s";
+    EMAIL(1, "邮件提醒");
 
-    /**
-     * 优惠券模板缓存空值 Key
-     */
-    public static final String COUPON_TEMPLATE_IS_NULL_KEY = "one-coupon_engine:template_is_null:%s";
+    @Getter
+    private final int type;
+    @Getter
+    private final String describe;
 
-    /**
-     * 限制用户领取优惠券模板次数缓存 Key
-     */
-    public static final String USER_COUPON_TEMPLATE_LIMIT_KEY = "one-coupon_engine:user-template-limit:%s_%s";
+    public static CouponRemindTypeEnum getByType(Integer type) {
+        for (CouponRemindTypeEnum remindEnum : values()) {
+            if (remindEnum.getType() == type) {
+                return remindEnum;
+            }
+        }
+        return null;
+    }
 
-    /**
-     * 用户已领取优惠券列表模板 Key
-     */
-    public static final String USER_COUPON_TEMPLATE_LIST_KEY = "one-coupon_engine:user-template-list:%s";
-
-    /**
-     * 检查用户是否已提醒 Key
-     */
-    public static final String COUPON_REMIND_CHECK_KEY = "one-coupon_engine:coupon-remind-check:%s_%s_%d_%d";
+    public static String getDescribeByType(Integer type) {
+        for (CouponRemindTypeEnum remindEnum : values()) {
+            if (remindEnum.getType() == type) {
+                return remindEnum.getDescribe();
+            }
+        }
+        return null;
+    }
 }

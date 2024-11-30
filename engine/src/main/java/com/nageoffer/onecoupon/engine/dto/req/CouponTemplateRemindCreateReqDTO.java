@@ -32,44 +32,43 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.common.constant;
+package com.nageoffer.onecoupon.engine.dto.req;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
 
 /**
- * 分布式 Redis 缓存引擎层常量类
+ * 创建抢券预约提醒接口请求参数实体
  * <p>
- * 作者：马丁
+ * 作者：优雅
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-14
+ * 开发时间：2024-07-16
  */
-public final class EngineRedisConstant {
+@Data
+@Schema(description = "优惠券预约抢券提醒请求参数实体")
+public class CouponTemplateRemindCreateReqDTO {
 
     /**
-     * 优惠券模板缓存 Key
+     * 优惠券模板id
      */
-    public static final String COUPON_TEMPLATE_KEY = "one-coupon_engine:template:%s";
+    @Schema(description = "优惠券模板id", example = "1810966706881941507", required = true)
+    private String couponTemplateId;
 
     /**
-     * 优惠券模板缓存分布式锁 Key
+     * 店铺编号
      */
-    public static final String LOCK_COUPON_TEMPLATE_KEY = "one-coupon_engine:lock:template:%s";
+    @Schema(description = "店铺编号", example = "1810714735922956666", required = true)
+    private String shopNumber;
 
     /**
-     * 优惠券模板缓存空值 Key
+     * 提醒方式
      */
-    public static final String COUPON_TEMPLATE_IS_NULL_KEY = "one-coupon_engine:template_is_null:%s";
+    @Schema(description = "提醒方式", example = "0", required = true)
+    private Integer type;
 
     /**
-     * 限制用户领取优惠券模板次数缓存 Key
+     * 提醒时间，比如五分钟，十分钟，十五分钟
      */
-    public static final String USER_COUPON_TEMPLATE_LIMIT_KEY = "one-coupon_engine:user-template-limit:%s_%s";
-
-    /**
-     * 用户已领取优惠券列表模板 Key
-     */
-    public static final String USER_COUPON_TEMPLATE_LIST_KEY = "one-coupon_engine:user-template-list:%s";
-
-    /**
-     * 检查用户是否已提醒 Key
-     */
-    public static final String COUPON_REMIND_CHECK_KEY = "one-coupon_engine:coupon-remind-check:%s_%s_%d_%d";
+    @Schema(description = "提醒时间", example = "5", required = true)
+    private Integer remindTime;
 }

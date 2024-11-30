@@ -32,44 +32,59 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.common.constant;
+package com.nageoffer.onecoupon.engine.mq.producer;
+
+import cn.hutool.core.util.StrUtil;
+import com.nageoffer.onecoupon.engine.mq.base.BaseSendExtendDTO;
+import com.nageoffer.onecoupon.engine.mq.base.MessageWrapper;
+import com.nageoffer.onecoupon.engine.mq.event.CouponRemindDelayEvent;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.common.message.MessageConst;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.stereotype.Component;
+
+import java.util.UUID;
 
 /**
- * 分布式 Redis 缓存引擎层常量类
+ * 提醒抢券生产者
  * <p>
- * 作者：马丁
+ * 作者：优雅
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-14
+ * 开发时间：2024-07-21
  */
-public final class EngineRedisConstant {
+@Slf4j
+@Component
+public class CouponRemindDelayProducer extends AbstractCommonSendProduceTemplate<CouponRemindDelayEvent> {
 
-    /**
-     * 优惠券模板缓存 Key
-     */
-    public static final String COUPON_TEMPLATE_KEY = "one-coupon_engine:template:%s";
+    private final ConfigurableEnvironment environment;
 
-    /**
-     * 优惠券模板缓存分布式锁 Key
-     */
-    public static final String LOCK_COUPON_TEMPLATE_KEY = "one-coupon_engine:lock:template:%s";
+    public CouponRemindDelayProducer(@Autowired RocketMQTemplate rocketMQTemplate, @Autowired ConfigurableEnvironment environment) {
+        super(rocketMQTemplate);
+        this.environment = environment;
+    }
 
-    /**
-     * 优惠券模板缓存空值 Key
-     */
-    public static final String COUPON_TEMPLATE_IS_NULL_KEY = "one-coupon_engine:template_is_null:%s";
+    @Override
+    protected BaseSendExtendDTO buildBaseSendExtendParam(CouponRemindDelayEvent messageSendEvent) {
+        return BaseSendExtendDTO.builder()
+                .eventName("提醒用户抢券")
+                .keys(messageSendEvent.getUserId() + ":" + messageSendEvent.getCouponTemplateId())
+                .topic(environment.resolvePlaceholders("one-coupon_engine-service_coupon-remind_topic${unique-name:}"))
+                .sentTimeout(2000L)
+                .delayTime(messageSendEvent.getDelayTime())
+                .build();
+    }
 
-    /**
-     * 限制用户领取优惠券模板次数缓存 Key
-     */
-    public static final String USER_COUPON_TEMPLATE_LIMIT_KEY = "one-coupon_engine:user-template-limit:%s_%s";
-
-    /**
-     * 用户已领取优惠券列表模板 Key
-     */
-    public static final String USER_COUPON_TEMPLATE_LIST_KEY = "one-coupon_engine:user-template-list:%s";
-
-    /**
-     * 检查用户是否已提醒 Key
-     */
-    public static final String COUPON_REMIND_CHECK_KEY = "one-coupon_engine:coupon-remind-check:%s_%s_%d_%d";
+    @Override
+    protected Message<?> buildMessage(CouponRemindDelayEvent messageSendEvent, BaseSendExtendDTO requestParam) {
+        String keys = StrUtil.isEmpty(requestParam.getKeys()) ? UUID.randomUUID().toString() : requestParam.getKeys();
+        return MessageBuilder
+                .withPayload(new MessageWrapper(keys, messageSendEvent))
+                .setHeader(MessageConst.PROPERTY_KEYS, keys)
+                .setHeader(MessageConst.PROPERTY_TAGS, requestParam.getTag())
+                .build();
+    }
 }

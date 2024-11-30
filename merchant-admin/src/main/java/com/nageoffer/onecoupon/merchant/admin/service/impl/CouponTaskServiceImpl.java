@@ -169,7 +169,7 @@ public class CouponTaskServiceImpl extends ServiceImpl<CouponTaskMapper, CouponT
         // 这里延迟时间设置 20 秒，原因是我们笃定上面线程池 20 秒之内就能结束任务
         delayedQueue.offer(delayJsonObject, 20, TimeUnit.SECONDS);
 
-        // 如果是立即发送任务，直接调用消息队列进行发送流程
+        // 如果是立即发送任务，直接调用消息队列进行发送流程 延时任务通过xxl-job定时发送
         if (Objects.equals(requestParam.getSendType(), CouponTaskSendTypeEnum.IMMEDIATE.getType())) {
             // 执行优惠券推送业务，正式向用户发放优惠券
             CouponTaskExecuteEvent couponTaskExecuteEvent = CouponTaskExecuteEvent.builder()

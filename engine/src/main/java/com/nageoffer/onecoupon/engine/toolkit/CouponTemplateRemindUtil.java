@@ -32,44 +32,33 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.common.constant;
+package com.nageoffer.onecoupon.engine.toolkit;
+
+import com.nageoffer.onecoupon.framework.exception.ClientException;
 
 /**
- * 分布式 Redis 缓存引擎层常量类
- * <p>
- * 作者：马丁
- * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-14
+ * 优惠券预约提醒工具类
  */
-public final class EngineRedisConstant {
+public class CouponTemplateRemindUtil {
 
     /**
-     * 优惠券模板缓存 Key
+     * 下一个类型的位移量，每个类型占用12个bit位，共计60分钟
      */
-    public static final String COUPON_TEMPLATE_KEY = "one-coupon_engine:template:%s";
+    private static final int NEXT_TYPE_BITS = 12;
 
     /**
-     * 优惠券模板缓存分布式锁 Key
+     * 5分钟为一个间隔
      */
-    public static final String LOCK_COUPON_TEMPLATE_KEY = "one-coupon_engine:lock:template:%s";
+    private static final int TIME_INTERVAL = 5;
 
     /**
-     * 优惠券模板缓存空值 Key
+     * 根据预约时间和预约类型计算bitmap
      */
-    public static final String COUPON_TEMPLATE_IS_NULL_KEY = "one-coupon_engine:template_is_null:%s";
-
-    /**
-     * 限制用户领取优惠券模板次数缓存 Key
-     */
-    public static final String USER_COUPON_TEMPLATE_LIMIT_KEY = "one-coupon_engine:user-template-limit:%s_%s";
-
-    /**
-     * 用户已领取优惠券列表模板 Key
-     */
-    public static final String USER_COUPON_TEMPLATE_LIST_KEY = "one-coupon_engine:user-template-list:%s";
-
-    /**
-     * 检查用户是否已提醒 Key
-     */
-    public static final String COUPON_REMIND_CHECK_KEY = "one-coupon_engine:coupon-remind-check:%s_%s_%d_%d";
+    public static Long calculateBitMap(Integer remindTime, Integer type) {
+        if (remindTime > TIME_INTERVAL * NEXT_TYPE_BITS) {
+            throw new ClientException("预约提醒的时间不能早于开票前" + TIME_INTERVAL * NEXT_TYPE_BITS + "分钟");
+        }
+        // 防止remindTime / TIME_INTERVAL - 1为0(remindTime小于5分钟)
+        return 1L << (type * NEXT_TYPE_BITS + Math.max(0, remindTime / TIME_INTERVAL - 1));
+    }
 }

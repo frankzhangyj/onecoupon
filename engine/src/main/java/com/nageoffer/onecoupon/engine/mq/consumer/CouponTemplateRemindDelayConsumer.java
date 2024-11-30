@@ -32,44 +32,48 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.common.constant;
+package com.nageoffer.onecoupon.engine.mq.consumer;
+
+import cn.hutool.core.bean.BeanUtil;
+import com.alibaba.fastjson2.JSON;
+import com.nageoffer.onecoupon.engine.mq.base.MessageWrapper;
+import com.nageoffer.onecoupon.engine.mq.event.CouponRemindDelayEvent;
+import com.nageoffer.onecoupon.engine.mq.event.CouponRemindDelayEvent;
+import com.nageoffer.onecoupon.engine.service.handler.remind.CouponTemplateRemindExecutor;
+import com.nageoffer.onecoupon.engine.service.handler.remind.dto.CouponTemplateRemindDTO;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
+import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.springframework.stereotype.Component;
 
 /**
- * 分布式 Redis 缓存引擎层常量类
+ * 提醒抢券消费者
  * <p>
- * 作者：马丁
+ * 作者：优雅
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-14
+ * 开发时间：2024-07-21
  */
-public final class EngineRedisConstant {
+@Component
+@RequiredArgsConstructor
+@RocketMQMessageListener(
+        topic = "one-coupon_engine-service_coupon-remind_topic${unique-name:}",
+        consumerGroup = "one-coupon_engine-service_coupon-remind_cg${unique-name:}"
+)
+@Slf4j(topic = "CouponTemplateRemindDelayConsumer")
+public class CouponTemplateRemindDelayConsumer implements RocketMQListener<MessageWrapper<CouponRemindDelayEvent>> {
 
-    /**
-     * 优惠券模板缓存 Key
-     */
-    public static final String COUPON_TEMPLATE_KEY = "one-coupon_engine:template:%s";
+    private final CouponTemplateRemindExecutor couponTemplateRemindExecutor;
 
-    /**
-     * 优惠券模板缓存分布式锁 Key
-     */
-    public static final String LOCK_COUPON_TEMPLATE_KEY = "one-coupon_engine:lock:template:%s";
+    @Override
+    public void onMessage(MessageWrapper<CouponRemindDelayEvent> messageWrapper) {
+        // 开头打印日志，平常可 Debug 看任务参数，线上可报平安（比如消息是否消费，重新投递时获取参数等）
+        log.info("[消费者] 提醒用户抢券 - 执行消费逻辑，消息体：{}", JSON.toJSONString(messageWrapper));
 
-    /**
-     * 优惠券模板缓存空值 Key
-     */
-    public static final String COUPON_TEMPLATE_IS_NULL_KEY = "one-coupon_engine:template_is_null:%s";
+        CouponRemindDelayEvent event = messageWrapper.getMessage();
+        CouponTemplateRemindDTO couponTemplateRemindDTO = BeanUtil.toBean(event, CouponTemplateRemindDTO.class);
 
-    /**
-     * 限制用户领取优惠券模板次数缓存 Key
-     */
-    public static final String USER_COUPON_TEMPLATE_LIMIT_KEY = "one-coupon_engine:user-template-limit:%s_%s";
-
-    /**
-     * 用户已领取优惠券列表模板 Key
-     */
-    public static final String USER_COUPON_TEMPLATE_LIST_KEY = "one-coupon_engine:user-template-list:%s";
-
-    /**
-     * 检查用户是否已提醒 Key
-     */
-    public static final String COUPON_REMIND_CHECK_KEY = "one-coupon_engine:coupon-remind-check:%s_%s_%d_%d";
+        // 根据不同策略向用户发送消息提醒
+        couponTemplateRemindExecutor.executeRemindCouponTemplate(couponTemplateRemindDTO);
+    }
 }

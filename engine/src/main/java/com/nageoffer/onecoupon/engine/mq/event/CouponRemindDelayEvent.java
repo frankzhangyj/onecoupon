@@ -32,44 +32,67 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.common.constant;
+package com.nageoffer.onecoupon.engine.mq.event;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.Date;
 
 /**
- * 分布式 Redis 缓存引擎层常量类
+ * 优惠券提醒抢券事件
  * <p>
- * 作者：马丁
+ * 作者：优雅
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-14
+ * 开发时间：2024-07-21
  */
-public final class EngineRedisConstant {
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class CouponRemindDelayEvent {
 
     /**
-     * 优惠券模板缓存 Key
+     * 优惠券模板id
      */
-    public static final String COUPON_TEMPLATE_KEY = "one-coupon_engine:template:%s";
+    private String couponTemplateId;
 
     /**
-     * 优惠券模板缓存分布式锁 Key
+     * 店铺编号
      */
-    public static final String LOCK_COUPON_TEMPLATE_KEY = "one-coupon_engine:lock:template:%s";
+    private String shopNumber;
 
     /**
-     * 优惠券模板缓存空值 Key
+     * 用户id
      */
-    public static final String COUPON_TEMPLATE_IS_NULL_KEY = "one-coupon_engine:template_is_null:%s";
+    private String userId;
 
     /**
-     * 限制用户领取优惠券模板次数缓存 Key
+     * 用户联系方式，可能是邮箱、手机号、等等
      */
-    public static final String USER_COUPON_TEMPLATE_LIMIT_KEY = "one-coupon_engine:user-template-limit:%s_%s";
+    private String contact;
 
     /**
-     * 用户已领取优惠券列表模板 Key
+     * 提醒方式
      */
-    public static final String USER_COUPON_TEMPLATE_LIST_KEY = "one-coupon_engine:user-template-list:%s";
+    private Integer type;
 
     /**
-     * 检查用户是否已提醒 Key
+     * 提醒时间，比如五分钟，十分钟，十五分钟
      */
-    public static final String COUPON_REMIND_CHECK_KEY = "one-coupon_engine:coupon-remind-check:%s_%s_%d_%d";
+    private Integer remindTime;
+
+    /**
+     * 开抢时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private Date startTime;
+
+    /**
+     * 具体延迟时间
+     */
+    private Long delayTime;
 }
