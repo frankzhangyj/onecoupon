@@ -72,4 +72,9 @@ public final class EngineRedisConstant {
      * 检查用户是否已提醒 Key
      */
     public static final String COUPON_REMIND_CHECK_KEY = "one-coupon_engine:coupon-remind-check:%s_%s_%d_%d";
+
+    /**
+     * 用户预约提醒信息 Key
+     */
+    public static final String USER_COUPON_TEMPLATE_REMIND_INFORMATION = "one-coupon_engine:coupon-remind-information:%s";
 }

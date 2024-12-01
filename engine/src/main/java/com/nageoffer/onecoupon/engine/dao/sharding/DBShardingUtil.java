@@ -32,41 +32,39 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.config;
+package com.nageoffer.onecoupon.engine.dao.sharding;
 
-import org.redisson.api.RBloomFilter;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import cn.hutool.core.lang.Singleton;
+
+import java.util.Collection;
+import java.util.List;
 
 /**
- * 布隆过滤器配置类
+ * 针对项目中 IN 操作跨数据库场景进行拆分数据源
+ * 难点 对于进行分库分表的批量查询 会出现一组数据在不同数据库中 出现跨库问题 所以需要先将批量数据对应的库确定 然后查询
+ * 对于单值查询 可以直接通过分库算法和分表算法确定数据
  */
-@Configuration
-public class RBloomFilterConfiguration {
+public final class DBShardingUtil {
 
     /**
-     * 难点 布隆过滤器的容量就取决于业务的数量 布隆过滤器大小不能超过 476MB 较低的误判率意味着需要更大的位数组和更多的哈希函数
-     * 一个亿的元素，如果千分之一的误判率，那么实际容量大概在 170M 左右。
-     * 另外在对布隆过滤器进行初始化的时候，会一次性申请对应的内存，这个需要额外注意下，避免初始化超大容量布隆过滤器时内存不足问题。
-     * 如果数据量300亿 可以设置多个布隆过滤器分片 根据模板 ID 进行分片，确定要操作的布隆过滤器，从而在该分片上进行操作。
-     * 优惠券查询缓存穿透布隆过滤器
+     * 获取数据库分片算法类，在该类初始化时向 Singleton 放入实例
      */
-    @Bean
-    public RBloomFilter<String> couponTemplateQueryBloomFilter(RedissonClient redissonClient, @Value("${framework.cache.redis.prefix:}") String cachePrefix) {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(cachePrefix + "couponTemplateQueryBloomFilter");
-        bloomFilter.tryInit(640L, 0.001);
-        return bloomFilter;
+    private static final DBHashModShardingAlgorithm dbShardingAlgorithm = Singleton.get(DBHashModShardingAlgorithm.class);
+
+    /**
+     * 解决查询商家优惠券 IN 场景跨库表不存在问题
+     *
+     * @param shopNumber 分片键 shopNumber
+     * @return 返回 shopNumber 所在的数据源
+     */
+    public static int doCouponSharding(Long shopNumber) {
+        return dbShardingAlgorithm.getShardingMod(shopNumber, getAvailableDatabases().size());
     }
 
     /**
-     * 防止取消提醒缓存穿透的布隆过滤器
+     * 获取可用的数据源列表
      */
-    @Bean
-    public RBloomFilter<String> cancelRemindBloomFilter(RedissonClient redissonClient, @Value("${framework.cache.redis.prefix:}") String cachePrefix) {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(cachePrefix + "cancelRemindBloomFilter");
-        bloomFilter.tryInit(640L, 0.001);
-        return bloomFilter;
+    private static Collection<String> getAvailableDatabases() {
+        return List.of("ds0", "ds1");
     }
 }

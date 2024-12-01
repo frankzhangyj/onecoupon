@@ -36,7 +36,13 @@ package com.nageoffer.onecoupon.engine.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.nageoffer.onecoupon.engine.dao.entity.CouponTemplateRemindDO;
+import com.nageoffer.onecoupon.engine.dto.req.CouponTemplateRemindCancelReqDTO;
 import com.nageoffer.onecoupon.engine.dto.req.CouponTemplateRemindCreateReqDTO;
+import com.nageoffer.onecoupon.engine.dto.req.CouponTemplateRemindQueryReqDTO;
+import com.nageoffer.onecoupon.engine.dto.resp.CouponTemplateRemindQueryRespDTO;
+import com.nageoffer.onecoupon.engine.service.handler.remind.dto.CouponTemplateRemindDTO;
+
+import java.util.List;
 
 /**
  * 优惠券预约提醒业务逻辑层
@@ -53,4 +59,25 @@ public interface CouponTemplateRemindService extends IService<CouponTemplateRemi
      * @param requestParam 请求参数
      */
     void createCouponRemind(CouponTemplateRemindCreateReqDTO requestParam);
+
+    /**
+     * 取消抢券预约提醒
+     *
+     * @param requestParam 请求参数
+     */
+    void cancelCouponRemind(CouponTemplateRemindCancelReqDTO requestParam);
+
+    /**
+     * 检查是否取消抢券预约提醒
+     *
+     * @param requestParam 请求参数
+     */
+    boolean isCancelRemind(CouponTemplateRemindDTO requestParam);
+
+    /**
+     * 分页查询抢券预约提醒
+     *
+     * @param requestParam 请求参数
+     */
+    List<CouponTemplateRemindQueryRespDTO> listCouponRemind(CouponTemplateRemindQueryReqDTO requestParam);
 }

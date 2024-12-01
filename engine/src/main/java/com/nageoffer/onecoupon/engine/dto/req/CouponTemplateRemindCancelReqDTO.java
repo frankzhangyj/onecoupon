@@ -32,41 +32,43 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.engine.config;
+package com.nageoffer.onecoupon.engine.dto.req;
 
-import org.redisson.api.RBloomFilter;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
 
 /**
- * 布隆过滤器配置类
+ * 取消抢券预约提醒接口请求参数实体
+ * <p>
+ * 作者：优雅
+ * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+ * 开发时间：2024-07-18
  */
-@Configuration
-public class RBloomFilterConfiguration {
+@Data
+@Schema(description = "取消优惠券预约抢券提醒参数实体")
+public class CouponTemplateRemindCancelReqDTO {
 
     /**
-     * 难点 布隆过滤器的容量就取决于业务的数量 布隆过滤器大小不能超过 476MB 较低的误判率意味着需要更大的位数组和更多的哈希函数
-     * 一个亿的元素，如果千分之一的误判率，那么实际容量大概在 170M 左右。
-     * 另外在对布隆过滤器进行初始化的时候，会一次性申请对应的内存，这个需要额外注意下，避免初始化超大容量布隆过滤器时内存不足问题。
-     * 如果数据量300亿 可以设置多个布隆过滤器分片 根据模板 ID 进行分片，确定要操作的布隆过滤器，从而在该分片上进行操作。
-     * 优惠券查询缓存穿透布隆过滤器
+     * 店铺编号
      */
-    @Bean
-    public RBloomFilter<String> couponTemplateQueryBloomFilter(RedissonClient redissonClient, @Value("${framework.cache.redis.prefix:}") String cachePrefix) {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(cachePrefix + "couponTemplateQueryBloomFilter");
-        bloomFilter.tryInit(640L, 0.001);
-        return bloomFilter;
-    }
+    @Schema(description = "店铺编号", example = "1810714735922956666", required = true)
+    private String shopNumber;
 
     /**
-     * 防止取消提醒缓存穿透的布隆过滤器
+     * 优惠券模板id
      */
-    @Bean
-    public RBloomFilter<String> cancelRemindBloomFilter(RedissonClient redissonClient, @Value("${framework.cache.redis.prefix:}") String cachePrefix) {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(cachePrefix + "cancelRemindBloomFilter");
-        bloomFilter.tryInit(640L, 0.001);
-        return bloomFilter;
-    }
+    @Schema(description = "优惠券模板id", example = "1810966706881941507", required = true)
+    private String couponTemplateId;
+
+    /**
+     * 提醒时间，比如五分钟，十分钟，十五分钟
+     */
+    @Schema(description = "提醒时间", example = "15")
+    private Integer remindTime;
+
+    /**
+     * 提醒方式
+     */
+    @Schema(description = "提醒方式", example = "0", required = true)
+    private Integer type;
 }

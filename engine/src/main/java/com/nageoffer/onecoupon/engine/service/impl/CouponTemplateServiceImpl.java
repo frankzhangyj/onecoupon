@@ -44,6 +44,7 @@ import com.nageoffer.onecoupon.engine.common.constant.EngineRedisConstant;
 import com.nageoffer.onecoupon.engine.common.enums.CouponTemplateStatusEnum;
 import com.nageoffer.onecoupon.engine.dao.entity.CouponTemplateDO;
 import com.nageoffer.onecoupon.engine.dao.mapper.CouponTemplateMapper;
+import com.nageoffer.onecoupon.engine.dao.sharding.DBShardingUtil;
 import com.nageoffer.onecoupon.engine.dto.req.CouponTemplateQueryReqDTO;
 import com.nageoffer.onecoupon.engine.dto.resp.CouponTemplateQueryRespDTO;
 import com.nageoffer.onecoupon.engine.service.CouponTemplateService;
@@ -57,10 +58,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -273,5 +271,44 @@ public class CouponTemplateServiceImpl extends ServiceImpl<CouponTemplateMapper,
         CouponTemplateDO couponTemplateDO = couponTemplateMapper.selectOne(queryWrapper);
 
         return BeanUtil.toBean(couponTemplateDO, CouponTemplateQueryRespDTO.class);
+    }
+
+    @Override
+    public List<CouponTemplateDO> listCouponTemplateByIds(List<Long> couponTemplateIds, List<Long> shopNumbers) {
+        // 1. 将 shopNumbers集合 对应的index拆分到数据库中
+        // 因为分片键是shopNumbers所以根据查询的shopNumbers得到对应优惠券所在的库 避免批量查询出现跨库
+        Map<Integer, List<Long>> databaseIndexMap = splitIndexByDatabase(shopNumbers);
+
+        List<CouponTemplateDO> result = new ArrayList<>();
+        // 2. 对每个数据库执行查询
+        for (Map.Entry<Integer, List<Long>> entry : databaseIndexMap.entrySet()) {
+            List<Long> shopNumbersSubset = entry.getValue();
+
+            // 执行查询
+            List<CouponTemplateDO> couponTemplateDOList = queryDatabase(couponTemplateIds, shopNumbersSubset);
+            result.addAll(couponTemplateDOList);
+        }
+
+        return result;
+    }
+
+    private List<CouponTemplateDO> queryDatabase(List<Long> couponTemplateIds, List<Long> shopNumbers) {
+        LambdaQueryWrapper<CouponTemplateDO> queryWrapper = Wrappers.lambdaQuery(CouponTemplateDO.class)
+                .in(CouponTemplateDO::getShopNumber, shopNumbers)
+                .in(CouponTemplateDO::getId, couponTemplateIds);
+        return couponTemplateMapper.selectList(queryWrapper);
+    }
+
+    private Map<Integer, List<Long>> splitIndexByDatabase(List<Long> shopNumbers) {
+        Map<Integer, List<Long>> databaseShopNumberMap = new HashMap<>();
+
+        for (Long shopNumber : shopNumbers) {
+            int databaseMod = DBShardingUtil.doCouponSharding(shopNumber);
+            databaseShopNumberMap
+                    .computeIfAbsent(databaseMod, k -> new ArrayList<>())
+                    .add(shopNumber);
+        }
+
+        return databaseShopNumberMap;
     }
 }

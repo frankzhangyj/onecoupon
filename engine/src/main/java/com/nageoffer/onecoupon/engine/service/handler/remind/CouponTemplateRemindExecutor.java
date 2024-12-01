@@ -39,6 +39,7 @@ import com.alibaba.fastjson2.JSON;
 import com.nageoffer.onecoupon.engine.common.enums.CouponRemindTypeEnum;
 import com.nageoffer.onecoupon.engine.mq.event.CouponRemindDelayEvent;
 import com.nageoffer.onecoupon.engine.mq.producer.CouponRemindDelayProducer;
+import com.nageoffer.onecoupon.engine.service.CouponTemplateRemindService;
 import com.nageoffer.onecoupon.engine.service.handler.remind.dto.CouponTemplateRemindDTO;
 import com.nageoffer.onecoupon.engine.service.handler.remind.impl.SendAppMessageRemindCouponTemplate;
 import com.nageoffer.onecoupon.engine.service.handler.remind.impl.SendEmailRemindCouponTemplate;
@@ -62,6 +63,7 @@ import static com.nageoffer.onecoupon.engine.common.constant.EngineRedisConstant
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class CouponTemplateRemindExecutor {
 
     private final SendEmailRemindCouponTemplate sendEmailRemindCouponTemplate;
@@ -69,6 +71,7 @@ public class CouponTemplateRemindExecutor {
 
     private final RedissonClient redissonClient;
     private final StringRedisTemplate stringRedisTemplate;
+    private final CouponTemplateRemindService couponTemplateRemindService;
 
     // 提醒用户属于 IO 密集型任务
     private final ExecutorService executorService = new ThreadPoolExecutor(
@@ -87,6 +90,13 @@ public class CouponTemplateRemindExecutor {
      * @param couponTemplateRemindDTO 用户预约提醒请求信息
      */
     public void executeRemindCouponTemplate(CouponTemplateRemindDTO couponTemplateRemindDTO) {
+
+        // 用户取消预约，则发出提醒
+        if (couponTemplateRemindService.isCancelRemind(couponTemplateRemindDTO)) {
+            log.info("用户已取消优惠券预约提醒，参数：{}", JSON.toJSONString(couponTemplateRemindDTO));
+            return;
+        }
+
         // 假设刚把消息提交到线程池，突然应用宕机了，我们通过延迟队列进行兜底 Refresh
         // 使用阻塞队列可以在队列为空时阻塞 不会使得cpu空转
         RBlockingDeque<String> blockingDeque = redissonClient.getBlockingDeque(REDIS_BLOCKING_DEQUE);
