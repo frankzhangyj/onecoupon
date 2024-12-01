@@ -77,4 +77,9 @@ public final class EngineRedisConstant {
      * 用户预约提醒信息 Key
      */
     public static final String USER_COUPON_TEMPLATE_REMIND_INFORMATION = "one-coupon_engine:coupon-remind-information:%s";
+
+    /**
+     * 优惠券结算单分布式锁 Key
+     */
+    public static final String LOCK_COUPON_SETTLEMENT_KEY = "one-coupon_engine:lock:coupon-settlement:%d";
 }

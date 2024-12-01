@@ -32,7 +32,7 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.template.lock;
+package com.nageoffer.onecoupon.merchant.admin.template.;
 
 import com.alibaba.fastjson2.JSON;
 import com.nageoffer.onecoupon.merchant.admin.controller.CouponTemplateController;
