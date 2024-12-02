@@ -32,41 +32,84 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.merchant.admin.service;
+package com.nageoffer.onecoupon.merchant.admin.dto.resp;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.service.IService;
-import com.nageoffer.onecoupon.merchant.admin.dao.entity.CouponTaskDO;
-import com.nageoffer.onecoupon.merchant.admin.dto.req.CouponTaskCreateReqDTO;
-import com.nageoffer.onecoupon.merchant.admin.dto.req.CouponTaskPageQueryReqDTO;
-import com.nageoffer.onecoupon.merchant.admin.dto.resp.CouponTaskPageQueryRespDTO;
-import com.nageoffer.onecoupon.merchant.admin.dto.resp.CouponTaskQueryRespDTO;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+
+import java.util.Date;
 
 /**
- * 优惠券推送业务逻辑层
+ * 优惠券推送任务分页查询接口返回参数实体
+ * <p>
+ * 作者：马丁
+ * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+ * 开发时间：2024-07-10
  */
-public interface CouponTaskService extends IService<CouponTaskDO> {
+@Data
+@Schema(description = "优惠券推送任务分页查询返回实体")
+public class CouponTaskPageQueryRespDTO {
 
     /**
-     * 商家创建优惠券推送任务
-     *
-     * @param requestParam 请求参数
+     * 批次id
      */
-    void createCouponTask(CouponTaskCreateReqDTO requestParam);
+    @Schema(description = "批次id")
+    private String batchId;
 
     /**
-     * 分页查询商家优惠券推送任务
-     *
-     * @param requestParam 请求参数
-     * @return 商家优惠券推送任务分页数据
+     * 优惠券批次任务名称
      */
-    IPage<CouponTaskPageQueryRespDTO> pageQueryCouponTask(CouponTaskPageQueryReqDTO requestParam);
+    @Schema(description = "优惠券批次任务名称")
+    private String taskName;
 
     /**
-     * 查询优惠券推送任务详情
-     *
-     * @param taskId 推送任务 ID
-     * @return 优惠券推送任务详情
+     * 发放优惠券数量
      */
-    CouponTaskQueryRespDTO findCouponTaskById(String taskId);
+    @Schema(description = "发放优惠券数量")
+    private Integer sendNum;
+
+    /**
+     * 通知方式，可组合使用 0：站内信 1：弹框推送 2：邮箱 3：短信
+     */
+    @Schema(description = "通知方式，0：站内信 1：弹框推送 2：邮箱 3：短信")
+    private String notifyType;
+
+    /**
+     * 优惠券模板id
+     */
+    @Schema(description = "优惠券模板id")
+    private String couponTemplateId;
+
+    /**
+     * 发送类型 0：立即发送 1：定时发送
+     */
+    @Schema(description = "发送类型，0：立即发送 1：定时发送")
+    private Integer sendType;
+
+    /**
+     * 发送时间
+     */
+    @Schema(description = "发送时间")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private Date sendTime;
+
+    /**
+     * 状态 0：待执行 1：执行中 2：执行失败 3：执行成功 4：取消
+     */
+    @Schema(description = "状态 0：待执行 1：执行中 2：执行失败 3：执行成功 4：取消")
+    private Integer status;
+
+    /**
+     * 完成时间
+     */
+    @Schema(description = "完成时间")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private Date completionTime;
+
+    /**
+     * 操作人
+     */
+    @Schema(description = "操作人")
+    private Long operatorId;
 }

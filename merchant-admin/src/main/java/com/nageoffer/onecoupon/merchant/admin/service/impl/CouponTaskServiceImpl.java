@@ -36,10 +36,14 @@ package com.nageoffer.onecoupon.merchant.admin.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.fastjson2.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.onecoupon.framework.exception.ClientException;
 import com.nageoffer.onecoupon.merchant.admin.common.context.UserContext;
@@ -48,6 +52,9 @@ import com.nageoffer.onecoupon.merchant.admin.common.enums.CouponTaskStatusEnum;
 import com.nageoffer.onecoupon.merchant.admin.dao.entity.CouponTaskDO;
 import com.nageoffer.onecoupon.merchant.admin.dao.mapper.CouponTaskMapper;
 import com.nageoffer.onecoupon.merchant.admin.dto.req.CouponTaskCreateReqDTO;
+import com.nageoffer.onecoupon.merchant.admin.dto.req.CouponTaskPageQueryReqDTO;
+import com.nageoffer.onecoupon.merchant.admin.dto.resp.CouponTaskPageQueryRespDTO;
+import com.nageoffer.onecoupon.merchant.admin.dto.resp.CouponTaskQueryRespDTO;
 import com.nageoffer.onecoupon.merchant.admin.dto.resp.CouponTemplateQueryRespDTO;
 import com.nageoffer.onecoupon.merchant.admin.mq.event.CouponTaskExecuteEvent;
 import com.nageoffer.onecoupon.merchant.admin.mq.producer.CouponTaskActualExecuteProducer;
@@ -93,6 +100,11 @@ public class CouponTaskServiceImpl extends ServiceImpl<CouponTaskMapper, CouponT
     private final RedissonClient redissonClient;
     private final CouponTaskActualExecuteProducer couponTaskActualExecuteProducer;
     // 难点 创建异步线程执行解析excel的长时间操作
+
+    /**
+     * 为什么这里拒绝策略使用直接丢弃任务？因为在发送任务时如果遇到发送数量为空，会重新进行统计
+     * 当线程池所有线程都占用时直接将当前任务拒绝 在之后的兜底消费者判断没有设置总行数重新进行统计总行数
+     */
     private final ExecutorService executorService = new ThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Runtime.getRuntime().availableProcessors() << 1,
@@ -256,5 +268,28 @@ public class CouponTaskServiceImpl extends ServiceImpl<CouponTaskMapper, CouponT
                         }
                     });
         }
+    }
+
+    @Override
+    public IPage<CouponTaskPageQueryRespDTO> pageQueryCouponTask(CouponTaskPageQueryReqDTO requestParam) {
+        // 构建分页查询模板 LambdaQueryWrapper
+        LambdaQueryWrapper<CouponTaskDO> queryWrapper = Wrappers.lambdaQuery(CouponTaskDO.class)
+                .eq(CouponTaskDO::getShopNumber, UserContext.getShopNumber())
+                .eq(StrUtil.isNotBlank(requestParam.getBatchId()), CouponTaskDO::getBatchId, requestParam.getBatchId())
+                .like(StrUtil.isNotBlank(requestParam.getTaskName()), CouponTaskDO::getTaskName, requestParam.getTaskName())
+                .eq(StrUtil.isNotBlank(requestParam.getCouponTemplateId()), CouponTaskDO::getCouponTemplateId, requestParam.getCouponTemplateId())
+                .eq(Objects.nonNull(requestParam.getStatus()), CouponTaskDO::getStatus, requestParam.getStatus());
+
+        // MyBatis-Plus 分页查询优惠券推送任务信息
+        IPage<CouponTaskDO> selectPage = couponTaskMapper.selectPage(requestParam, queryWrapper);
+
+        // 转换数据库持久层对象为优惠券模板返回参数
+        return selectPage.convert(each -> BeanUtil.toBean(each, CouponTaskPageQueryRespDTO.class));
+    }
+
+    @Override
+    public CouponTaskQueryRespDTO findCouponTaskById(String taskId) {
+        CouponTaskDO couponTaskDO = couponTaskMapper.selectById(taskId);
+        return BeanUtil.toBean(couponTaskDO, CouponTaskQueryRespDTO.class);
     }
 }
