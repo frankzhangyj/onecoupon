@@ -32,24 +32,32 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.settlement;
+package com.nageoffer.onecoupon.settlement.dto.req;
 
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+
+import java.math.BigDecimal;
 
 /**
- * 结算服务｜负责用户下单时订单金额计算功能，因和订单相关联，该服务流量较大
+ * 结算商品查询优惠券请求参数实体
  * <p>
  * 作者：马丁
- * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-08
+ * 加项目群：早加入就是优势！500人内部沟通群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
+ * 开发时间：2024-09-24
  */
-@SpringBootApplication
-@MapperScan("com.nageoffer.onecoupon.settlement.dao.mapper")
-public class SettlementApplication {
+@Data
+public class QueryCouponGoodsReqDTO {
 
-    public static void main(String[] args) {
-        SpringApplication.run(SettlementApplication.class, args);
-    }
+    /**
+     * 商品编号
+     */
+    @Schema(description = "商品编号")
+    private String goodsNumber;
+
+    /**
+     * 商品价格
+     */
+    @Schema(description = "商品价格")
+    private BigDecimal goodsAmount;
 }

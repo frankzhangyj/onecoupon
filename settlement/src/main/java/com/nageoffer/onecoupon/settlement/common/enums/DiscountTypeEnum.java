@@ -32,24 +32,54 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.settlement;
+package com.nageoffer.onecoupon.settlement.common.enums;
 
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 /**
- * 结算服务｜负责用户下单时订单金额计算功能，因和订单相关联，该服务流量较大
+ * 优惠券优惠类型
  * <p>
  * 作者：马丁
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-08
+ * 开发时间：2024-07-09
  */
-@SpringBootApplication
-@MapperScan("com.nageoffer.onecoupon.settlement.dao.mapper")
-public class SettlementApplication {
+@RequiredArgsConstructor
+public enum DiscountTypeEnum {
 
-    public static void main(String[] args) {
-        SpringApplication.run(SettlementApplication.class, args);
+    /**
+     * 立减券
+     */
+    FIXED_DISCOUNT(0, "立减券"),
+
+    /**
+     * 满减券
+     */
+    THRESHOLD_DISCOUNT(1, "满减券"),
+
+    /**
+     * 折扣券
+     */
+    DISCOUNT_COUPON(2, "折扣券");
+
+    @Getter
+    private final int type;
+
+    @Getter
+    private final String value;
+
+    /**
+     * 根据 type 找到对应的 value
+     *
+     * @param type 要查找的类型代码
+     * @return 对应的描述值，如果没有找到抛异常
+     */
+    public static String findValueByType(int type) {
+        for (DiscountTypeEnum target : DiscountTypeEnum.values()) {
+            if (target.getType() == type) {
+                return target.getValue();
+            }
+        }
+        throw new IllegalArgumentException();
     }
 }

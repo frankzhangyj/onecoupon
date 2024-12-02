@@ -32,24 +32,17 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.settlement;
+package com.nageoffer.onecoupon.settlement.mapper;
 
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.nageoffer.onecoupon.settlement.dao.entity.FixedDiscountCouponDO;
 
 /**
- * 结算服务｜负责用户下单时订单金额计算功能，因和订单相关联，该服务流量较大
+ * 立减券（无门槛券）数据访问接口
  * <p>
- * 作者：马丁
+ * 作者：Henry Wan
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-08
+ * 开发时间：2024-07-23
  */
-@SpringBootApplication
-@MapperScan("com.nageoffer.onecoupon.settlement.dao.mapper")
-public class SettlementApplication {
-
-    public static void main(String[] args) {
-        SpringApplication.run(SettlementApplication.class, args);
-    }
+public interface FixedDiscountCouponMapper extends BaseMapper<FixedDiscountCouponDO> {
 }

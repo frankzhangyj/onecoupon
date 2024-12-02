@@ -32,24 +32,34 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.settlement;
+package com.nageoffer.onecoupon.settlement.service;
 
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import com.nageoffer.onecoupon.settlement.dto.req.QueryCouponsReqDTO;
+import com.nageoffer.onecoupon.settlement.dto.resp.QueryCouponsRespDTO;
 
 /**
- * 结算服务｜负责用户下单时订单金额计算功能，因和订单相关联，该服务流量较大
+ * 查询用户可用优惠券列表接口
  * <p>
- * 作者：马丁
+ * 作者：Henry Wan
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-08
+ * 开发时间：2024-07-23
  */
-@SpringBootApplication
-@MapperScan("com.nageoffer.onecoupon.settlement.dao.mapper")
-public class SettlementApplication {
+public interface CouponQueryService {
 
-    public static void main(String[] args) {
-        SpringApplication.run(SettlementApplication.class, args);
-    }
+    /**
+     * 查询用户可用/不可用的优惠券列表，返回 CouponsRespDTO 对象
+     *
+     * @param requestParam 查询参数
+     * @return 包含可用/不可用优惠券的查询结果
+     */
+    QueryCouponsRespDTO listQueryUserCoupons(QueryCouponsReqDTO requestParam);
+
+    /**
+     * 查询用户可用/不可用的优惠券列表，返回 CouponsRespDTO 对象
+     *
+     * @param requestParam 查询参数
+     * @return 包含可用/不可用优惠券的查询结果
+     */
+    QueryCouponsRespDTO listQueryUserCouponsBySync(QueryCouponsReqDTO requestParam);
 }
+

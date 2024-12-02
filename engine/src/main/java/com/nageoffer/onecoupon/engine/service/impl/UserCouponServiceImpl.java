@@ -90,6 +90,7 @@ import java.util.Optional;
 
 import static com.nageoffer.onecoupon.engine.common.constant.EngineRedisConstant.USER_COUPON_TEMPLATE_LIST_KEY;
 import static com.nageoffer.onecoupon.engine.common.enums.CouponSettlementEnum.LOCKING;
+import static com.nageoffer.onecoupon.engine.common.enums.CouponSettlementEnum.PAYED;
 
 /**
  * 用户优惠券业务逻辑实现层
@@ -331,7 +332,7 @@ public class UserCouponServiceImpl implements UserCouponService {
             LambdaQueryWrapper<CouponSettlementDO> queryWrapper = Wrappers.lambdaQuery(CouponSettlementDO.class)
                     .eq(CouponSettlementDO::getCouponId, requestParam.getCouponId())
                     .eq(CouponSettlementDO::getUserId, Long.parseLong(UserContext.getUserId()))
-                    .in(CouponSettlementDO::getStatus, 0, 2);
+                    .in(CouponSettlementDO::getStatus, LOCKING.getCode(), PAYED.getCode());
 
             // 验证优惠券是否正在使用或者已经被使用
             if (couponSettlementMapper.selectOne(queryWrapper) != null) {

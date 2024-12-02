@@ -32,24 +32,69 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.settlement;
+package com.nageoffer.onecoupon.settlement.common.context;
 
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import com.alibaba.ttl.TransmittableThreadLocal;
+
+import java.util.Optional;
 
 /**
- * 结算服务｜负责用户下单时订单金额计算功能，因和订单相关联，该服务流量较大
+ * 用户登录信息存储上下文
  * <p>
  * 作者：马丁
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-08
+ * 开发时间：2024-07-17
  */
-@SpringBootApplication
-@MapperScan("com.nageoffer.onecoupon.settlement.dao.mapper")
-public class SettlementApplication {
+public final class UserContext {
 
-    public static void main(String[] args) {
-        SpringApplication.run(SettlementApplication.class, args);
+    /**
+     * <a href="https://github.com/alibaba/transmittable-thread-local" />
+     */
+    private static final ThreadLocal<UserInfoDTO> USER_THREAD_LOCAL = new TransmittableThreadLocal<>();
+
+    /**
+     * 设置用户至上下文
+     *
+     * @param user 用户详情信息
+     */
+    public static void setUser(UserInfoDTO user) {
+        USER_THREAD_LOCAL.set(user);
+    }
+
+    /**
+     * 获取上下文中用户 ID
+     *
+     * @return 用户 ID
+     */
+    public static String getUserId() {
+        UserInfoDTO userInfoDTO = USER_THREAD_LOCAL.get();
+        return Optional.ofNullable(userInfoDTO).map(UserInfoDTO::getUserId).orElse(null);
+    }
+
+    /**
+     * 获取上下文中用户名称
+     *
+     * @return 用户名称
+     */
+    public static String getUsername() {
+        UserInfoDTO userInfoDTO = USER_THREAD_LOCAL.get();
+        return Optional.ofNullable(userInfoDTO).map(UserInfoDTO::getUsername).orElse(null);
+    }
+
+    /**
+     * 获取上下文中用户店铺编号
+     *
+     * @return 用户店铺编号
+     */
+    public static Long getShopNumber() {
+        UserInfoDTO userInfoDTO = USER_THREAD_LOCAL.get();
+        return Optional.ofNullable(userInfoDTO).map(UserInfoDTO::getShopNumber).orElse(null);
+    }
+
+    /**
+     * 清理用户上下文
+     */
+    public static void removeUser() {
+        USER_THREAD_LOCAL.remove();
     }
 }

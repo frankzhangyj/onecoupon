@@ -32,24 +32,59 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.settlement;
+package com.nageoffer.onecoupon.settlement.entity;
 
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
- * 结算服务｜负责用户下单时订单金额计算功能，因和订单相关联，该服务流量较大
+ * 立减券（无门槛）数据库持久层实体
  * <p>
- * 作者：马丁
+ * 作者：Henry Wan
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-08
+ * 开发时间：2024-07-23
  */
-@SpringBootApplication
-@MapperScan("com.nageoffer.onecoupon.settlement.dao.mapper")
-public class SettlementApplication {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class FixedDiscountCouponDO extends CouponTemplateDO {
 
-    public static void main(String[] args) {
-        SpringApplication.run(SettlementApplication.class, args);
+    /**
+     * 优惠金额
+     */
+    private Integer discountAmount;
+
+    @Builder(builderMethodName = "fixedDiscountCouponBuilder")
+    public FixedDiscountCouponDO(CouponTemplateDO coupon, Integer discountAmount) {
+        super(coupon.getId(), coupon.getShopNumber(), coupon.getName(), coupon.getSource(), coupon.getTarget(), coupon.getGoods(), coupon.getType(),
+                coupon.getValidStartTime(), coupon.getValidEndTime(), coupon.getStock(), coupon.getReceiveRule(), coupon.getConsumeRule(), coupon.getStatus(),
+                coupon.getCreateTime(), coupon.getUpdateTime(), coupon.getDelFlag());
+        setDiscountAmount(discountAmount);
+    }
+
+    public static FixedDiscountCouponDOBuilder builder() {
+        return new FixedDiscountCouponDOBuilder();
+    }
+
+    public static class FixedDiscountCouponDOBuilder extends CouponTemplateDO.CouponTemplateDOBuilder {
+        private Integer discountAmount;
+
+        FixedDiscountCouponDOBuilder() {
+            super();
+        }
+
+        public FixedDiscountCouponDOBuilder discountAmount(Integer discountAmount) {
+            this.discountAmount = discountAmount;
+            return this;
+        }
+
+        @Override
+        public FixedDiscountCouponDO build() {
+            CouponTemplateDO coupon = super.build();
+            return new FixedDiscountCouponDO(coupon, discountAmount);
+        }
     }
 }

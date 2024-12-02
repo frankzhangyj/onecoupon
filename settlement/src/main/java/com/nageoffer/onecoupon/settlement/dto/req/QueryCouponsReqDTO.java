@@ -32,24 +32,40 @@
  * 本软件受到[山东流年网络科技有限公司]及其许可人的版权保护。
  */
 
-package com.nageoffer.onecoupon.settlement;
+package com.nageoffer.onecoupon.settlement.dto.req;
 
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 /**
- * 结算服务｜负责用户下单时订单金额计算功能，因和订单相关联，该服务流量较大
+ * 查询用户优惠券请求参数
  * <p>
- * 作者：马丁
+ * 作者：Henry Wan
  * 加项目群：早加入就是优势！500人内部项目群，分享的知识总有你需要的 <a href="https://t.zsxq.com/cw7b9" />
- * 开发时间：2024-07-08
+ * 开发时间：2024-07-25
  */
-@SpringBootApplication
-@MapperScan("com.nageoffer.onecoupon.settlement.dao.mapper")
-public class SettlementApplication {
+@Data
+@Schema(description = "查询用户优惠券请求参数")
+public class QueryCouponsReqDTO {
 
-    public static void main(String[] args) {
-        SpringApplication.run(SettlementApplication.class, args);
-    }
+    /**
+     * 订单金额
+     */
+    @Schema(description = "订单金额", required = true)
+    private BigDecimal orderAmount;
+
+    /**
+     * 店铺编号
+     */
+    @Schema(description = "店铺编号", example = "1810714735922956666", required = true)
+    private String shopNumber;
+
+    /**
+     * 商品集合
+     */
+    @Schema(description = "商品集合", required = true)
+    private List<QueryCouponGoodsReqDTO> goodsList;
 }
